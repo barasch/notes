@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample Tufte Essay</title>
+  <link rel="stylesheet" href="https://edwardtufte.github.io/tufte-css/tufte.css">
+  <style>
+    /* Optional: Adjust sidenote behavior for better hover/tap */
+    label.sidenote-number:hover + .sidenote,
+    label.margin-toggle:hover + .sidenote {
+      background: #fdfdfd;
+      border: 1px solid #ddd;
+      padding: 0.5em;
+    }
+  </style>
+</head>
+<body>
+  <article>
+    <h1>Dialectic and Historical Reason</h1>
+
+    <p>
+      Hegel<span class="sidenote-number">1</span><span class="sidenote">Georg Wilhelm Friedrich Hegel (1770–1831), German philosopher of history and logic. His method of dialectical development—thesis, antithesis, synthesis—describes not a formula but a dynamic process by which concepts unfold historically.</span>
+      famously claimed that the owl of Minerva flies only at dusk.
+    </p>
+
+    <p>
+      This suggests that philosophy—<span class="sidenote-number">2</span><span class="sidenote">i.e., the reflective comprehension of a period or phenomenon—comes too late to shape it; it interprets, but does not guide.</span>—can grasp reality only after the fact.
+    </p>
+
+    <p>
+      Here's a margin note<span class="marginnote">Margin notes can be used for comments or citations that don't require inline placement. They appear on wider screens and are less intrusive.</span> that doesn’t interrupt the main text.
+    </p>
+
+  </article>
+</body>
+</html>
