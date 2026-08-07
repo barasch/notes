@@ -40,8 +40,19 @@
 }
 
 /* Tufte CSS styles */
+:root {
+    --paper: #fffff8;
+    --ink: #111;
+    --muted: #6f6a62;
+    --faint: #999288;
+    --rule: #d8d1c6;
+    --accent: #8f2f23;
+    --sans: "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+}
+
 html {
     font-size: 15px;
+    scroll-behavior: smooth;
 }
 
 body {
@@ -50,26 +61,34 @@ body {
     margin-right: auto;
     padding-left: 12.5%;
     font-family: et-book, Palatino, "Palatino Linotype", "Palatino LT STD", "Book Antiqua", Georgia, serif;
-    background-color: #fffff8;
-    color: #111;
+    background-color: var(--paper);
+    color: var(--ink);
     max-width: 1400px;
     counter-reset: sidenote-counter;
 }
 
 /* Adds dark mode */
 @media (prefers-color-scheme: dark) {
-    body {
-        background-color: #151515;
-        color: #ddd;
+    :root {
+        --paper: #151515;
+        --ink: #ddd;
+        --muted: #aaa;
+        --faint: #8e8e8e;
+        --rule: #4e4e4e;
+    }
+
+    .site-wordmark img {
+        filter: invert(1);
     }
 }
 
 h1 {
     font-weight: 400;
-    margin-top: 4rem;
-    margin-bottom: 1.5rem;
-    font-size: 3.2rem;
-    line-height: 1;
+    margin-top: 0;
+    margin-bottom: 1.35rem;
+    font-size: clamp(42px, 6vw, 72px);
+    letter-spacing: -0.025em;
+    line-height: 0.98;
 }
 
 h2 {
@@ -118,7 +137,7 @@ p.subtitle {
 }
 
 article {
-    padding: 5rem 0rem;
+    padding: clamp(4rem, 8vw, 6rem) 0 4rem;
 }
 
 section {
@@ -230,8 +249,143 @@ figure.fullwidth figcaption {
 a:link,
 a:visited {
     color: inherit;
+    text-decoration-color: rgba(143, 47, 35, 0.45);
     text-underline-offset: 0.1em;
     text-decoration-thickness: 0.05em;
+}
+
+a:hover,
+a:focus {
+    color: var(--accent);
+    text-decoration-color: currentColor;
+}
+
+/* Shared site identity */
+.site-header {
+    align-items: center;
+    display: flex;
+    gap: 45px;
+    justify-content: space-between;
+    padding: 21px 0 16px;
+    width: 90%;
+}
+
+.site-wordmark,
+.page-title {
+    font-family: et-book, Palatino, "Palatino Linotype", "Palatino LT STD", "Book Antiqua", Georgia, serif;
+    font-style: normal;
+    font-weight: 400;
+}
+
+.site-wordmark {
+    align-items: center;
+    display: inline-flex;
+    font-size: 17px;
+    gap: 9px;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.site-wordmark img {
+    display: block;
+    flex: none;
+    height: 26px;
+    width: 26px;
+}
+
+.site-links,
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    font-family: var(--sans);
+}
+
+.site-links {
+    font-size: 10.5px;
+    gap: 4px 19px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.site-links a,
+.footer-links a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.site-links a {
+    color: var(--muted);
+}
+
+.site-links a:hover,
+.site-links a:focus,
+.footer-links a:hover,
+.footer-links a:focus {
+    color: var(--ink);
+}
+
+.page-title {
+    margin-top: 0;
+}
+
+.publication-date {
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.86rem;
+    line-height: 1.4;
+}
+
+p.publication-date {
+    margin: 0.8rem 0 0;
+}
+
+.notes-index {
+    min-height: 58vh;
+    padding: clamp(4rem, 8vw, 6rem) 0 4rem;
+}
+
+.notes-list {
+    font-size: 1.4rem;
+    line-height: 2rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 55%;
+}
+
+.notes-list li {
+    margin: 0;
+}
+
+.notes-list .publication-date {
+    margin-left: 0.65rem;
+    white-space: nowrap;
+}
+
+.site-footer {
+    border-top: 1px solid var(--rule);
+    color: var(--faint);
+    font-family: var(--sans);
+    font-size: 11.5px;
+    line-height: 1.45;
+    margin: 0 0 2.75rem;
+    padding: 1rem 0 0;
+    width: 90%;
+}
+
+.footer-links {
+    gap: 5px 17px;
+}
+
+.visually-hidden {
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
 }
 
 /* Sidenotes, margin notes, figures, captions */
@@ -447,5 +601,23 @@ label.margin-toggle:not(.sidenote-number) {
 
     img {
         width: 100%;
+    }
+
+    .site-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 13px;
+        width: 100%;
+    }
+
+    .notes-list,
+    .site-footer {
+        width: 100%;
+    }
+
+    .notes-list .publication-date {
+        display: block;
+        margin-left: 0;
+        margin-top: 0.2rem;
     }
 }

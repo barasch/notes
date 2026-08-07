@@ -9,31 +9,6 @@
     <meta name="date" content="2026-08-07"/>
     <meta name="description" content="A critical, nontechnical review of Observer Patch Holography as relational physics, its mathematical dependency map, and its philosophical ancestry."/>
     <style>
-      .site-nav {
-        margin: 0 0 2rem;
-        font-size: 1rem;
-      }
-
-      .site-nav a {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-      }
-
-      .site-nav img {
-        display: block;
-        width: 1rem;
-        height: 1rem;
-        flex: none;
-      }
-
-      .publication-date {
-        color: #666;
-        font-size: 1rem;
-        line-height: 1.4;
-        margin: 0.8rem 0 0;
-      }
-
       .flow {
         display: grid;
         grid-template-columns: repeat(5, minmax(8rem, 1fr));
@@ -118,10 +93,6 @@
       }
 
       @media (prefers-color-scheme: dark) {
-        .publication-date {
-          color: #aaa;
-        }
-
         .flow-step:not(:last-child)::after {
           background: #151515;
         }
@@ -157,9 +128,19 @@
   </head>
 
   <body>
+    <header class="site-header" id="top">
+      <a class="site-wordmark" href="index.html" aria-label="Notes home">
+        <img src="favicon.png" alt=""/>
+        <span>Notes</span>
+      </a>
+      <nav class="site-links" aria-label="Related sites">
+        <a href="https://barasch.github.io/observatory/">Observatory</a>
+        <a href="https://barasch.github.io/the-city/">The City</a>
+      </nav>
+    </header>
+
     <article>
-      <p class="site-nav"><a href="index.html"><img src="favicon.png" alt=""/>Notes</a></p>
-      <h1 id="reality-in-the-overlap">Reality in the Overlap</h1>
+      <h1 class="page-title" id="reality-in-the-overlap">Reality in the Overlap</h1>
       <p class="subtitle">A review of Observer Patch Holography</p>
       <p class="publication-date"><time datetime="2026-08-07">August 7, 2026</time></p>
 
@@ -446,5 +427,13 @@
         </dl>
       </section>
     </article>
+
+    <footer class="site-footer">
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#top">Top</a>
+        <a href="index.html">Notes home</a>
+        <span>© 2026 SB</span>
+      </nav>
+    </footer>
   </body>
 </html>
