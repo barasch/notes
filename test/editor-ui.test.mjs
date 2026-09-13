@@ -65,19 +65,19 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   document.getElementById('editorBody').innerHTML='<p>A paragraph that survives a reload.</p>';
   document.getElementById('editorBody').dispatchEvent(new window.Event('input',{bubbles:true}));
   const savedAddress=location.href;
-  await until(()=>document.getElementById('insertButton').classList.contains('local-ok'));
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
   assert.equal(githubWrites,1,'autosaving has made no GitHub API write');
   assert.match(document.getElementById('remoteStamp').textContent,/Not yet saved/);
-  document.getElementById('saveDraft').click();
+  document.querySelector('[data-command=save]').click();
   await until(()=>document.getElementById('remoteStamp').textContent.startsWith('Draft saved to GitHub:'));
   assert.equal(document.getElementById('contentDialog').open,false,'the title-derived address needs no second confirmation');
-  await until(()=>!document.getElementById('saveDraft').disabled);
+  await until(()=>!document.getElementById('menuSaveDraft').disabled);
   assert.equal(githubWrites,2,'Save draft is the only writing action after setup');
   assert.match(files.get('drafts/a-recovered-note.json').text,/survives a reload/);
   const remoteTime=document.getElementById('remoteStamp').textContent;
   document.getElementById('editorBody').innerHTML='<p>A later paragraph, saved only in this browser.</p>';
   document.getElementById('editorBody').dispatchEvent(new window.Event('input',{bubbles:true}));
-  await until(()=>document.getElementById('insertButton').classList.contains('local-ok'));
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
   assert.equal(document.getElementById('remoteStamp').textContent,remoteTime);
   assert.equal(githubWrites,2);
   first.window.dispatchEvent(new first.window.Event('pagehide'));
@@ -90,6 +90,12 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   document.getElementById('unlockPassphrase').value='a-long-example-passphrase-for-testing';
   document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('workspace').hidden);
+  assert.equal(document.querySelectorAll('.toolbar-tools > button').length,0,'workspace commands are inside the menu');
+  assert.equal(document.querySelectorAll('#commandMenu [data-insert]').length,6);
+  assert.deepEqual(
+    [...document.querySelectorAll('#commandMenu [data-command]')].map(button=>button.dataset.command),
+    ['drafts','save','publish','focus','replace-token','lock'],
+  );
   assert.equal(document.getElementById('noteTitle').value,'A recovered note');
   assert.match(document.getElementById('editorBody').textContent,/saved only in this browser/);
   assert.equal(document.getElementById('remoteStamp').textContent,remoteTime);
@@ -103,7 +109,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
     document.dispatchEvent(new window.Event('selectionchange'));
   };
   selectEnd();
-  document.getElementById('insertButton').click();
+  document.getElementById('menuButton').click();
   document.querySelector('[data-insert=sidenote]').click();
   assert.equal(editorBody.querySelectorAll('[data-note-id]').length,1);
   const noteField=document.querySelector('.rail-note .note-text');
@@ -111,7 +117,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   noteField.dispatchEvent(new window.Event('input',{bubbles:true}));
 
   selectEnd();
-  document.getElementById('insertButton').click();
+  document.getElementById('menuButton').click();
   document.querySelector('[data-insert=link]').click();
   assert.equal(document.querySelector('#dialogFields [name=url]').type,'text');
   document.querySelector('#dialogFields [name=text]').value='another note';
@@ -120,12 +126,12 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(editorBody.querySelector('a')?.getAttribute('href'),'another-note.html');
 
   selectEnd();
-  document.getElementById('insertButton').click();
+  document.getElementById('menuButton').click();
   document.querySelector('[data-insert=table]').click();
   document.querySelector('#dialogFields [name=tsv]').value='Year\tTotal\n2025\t2,500';
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   assert.equal(editorBody.querySelector('.note-table th')?.textContent,'Year');
-  await until(()=>document.getElementById('insertButton').classList.contains('local-ok'));
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
   assert.equal(githubWrites,2,'inserting notes, links, and tables only changes local recovery');
   const {key}=await unlockCredential(JSON.parse(files.get('editor-auth.json').text),'a-long-example-passphrase-for-testing');
   const recovered=await recoveryAll(key);

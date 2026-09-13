@@ -55,33 +55,39 @@
   <div id="workspace" hidden>
     <header class="editor-toolbar">
       <a class="site-wordmark" href="index.html" aria-label="Notes home"><img src="favicon.png" alt=""><span>Notes</span></a>
-      <button type="button" id="showDrafts" class="quiet-button">Drafts</button>
       <div class="toolbar-tools">
         <label class="visually-hidden" for="styleSelector">Paragraph style</label>
         <select id="styleSelector" aria-label="Paragraph style">
           <option value="p">Body</option><option value="h2">Section heading</option><option value="h3">Subheading</option>
         </select>
-        <div class="insert-holder">
-          <button type="button" id="insertButton" class="insert-circle local-ok" aria-label="Insert. Local copy saved" aria-expanded="false" aria-controls="insertMenu" title="Insert · local copy saved">
+        <div class="command-holder">
+          <button type="button" id="menuButton" class="menu-circle local-ok" aria-label="Menu. Local copy saved" aria-expanded="false" aria-controls="commandMenu" title="Menu · local copy saved">
             <span></span><span></span><span></span>
           </button>
-          <div id="insertMenu" class="insert-menu" hidden>
-            <p>Insert</p>
-            <button type="button" data-insert="sidenote">Sidenote</button>
-            <button type="button" data-insert="margin">Margin note</button>
-            <button type="button" data-insert="link">Link</button>
-            <button type="button" data-insert="image">Image</button>
-            <button type="button" data-insert="quote">Pull quote</button>
-            <button type="button" data-insert="table">Table</button>
+          <div id="commandMenu" class="command-menu" hidden>
+            <div class="command-group">
+              <p>Insert</p>
+              <button type="button" data-insert="sidenote">Sidenote</button>
+              <button type="button" data-insert="margin">Margin note</button>
+              <button type="button" data-insert="link">Link</button>
+              <button type="button" data-insert="image">Image</button>
+              <button type="button" data-insert="quote">Pull quote</button>
+              <button type="button" data-insert="table">Table</button>
+            </div>
+            <div class="command-group">
+              <p>Note</p>
+              <button type="button" data-command="drafts">Drafts</button>
+              <button type="button" id="menuSaveDraft" data-command="save">Save draft</button>
+              <button type="button" id="menuPublish" data-command="publish">Publish</button>
+              <button type="button" data-command="focus">Focus</button>
+            </div>
+            <div class="command-group">
+              <p>Editor</p>
+              <button type="button" data-command="replace-token">Replace GitHub token</button>
+              <button type="button" data-command="lock">Lock</button>
+            </div>
           </div>
         </div>
-        <button type="button" id="saveDraft" class="quiet-button">Save draft</button>
-        <button type="button" id="publish" class="quiet-button">Publish</button>
-        <button type="button" id="focusButton" class="quiet-button">Focus</button>
-        <details class="utility-menu" id="utilityMenu">
-          <summary aria-label="More options">···</summary>
-          <div><button type="button" id="replaceToken">Replace GitHub token</button><button type="button" id="lockButton">Lock</button></div>
-        </details>
       </div>
     </header>
     <button id="exitFocus" class="focus-exit quiet-button" type="button" hidden>Exit focus</button>

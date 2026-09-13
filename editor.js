@@ -24,12 +24,12 @@ function warning(message='') {
   $('warning').textContent=message; $('warning').hidden=!message;
 }
 function localState(state) {
-  const button=$('insertButton');
+  const button=$('menuButton');
   button.classList.remove('local-ok','local-pending','local-failed');
   button.classList.add(`local-${state}`);
   const meaning={ok:'Local copy saved',pending:'Saving locally',failed:'Local recovery failed'}[state];
-  button.setAttribute('aria-label',`Insert. ${meaning}`);
-  button.title=`Insert · ${meaning.toLowerCase()}`;
+  button.setAttribute('aria-label',`Menu. ${meaning}`);
+  button.title=`Menu · ${meaning.toLowerCase()}`;
 }
 function githubStamp() {
   $('remoteStamp').textContent=note?.remoteSavedAt
@@ -421,7 +421,7 @@ function updateObject(id,object) {
 async function remoteAction(task) {
   if(busy) return;
   busy=true;
-  $('saveDraft').disabled=$('publish').disabled=true;
+  $('menuSaveDraft').disabled=$('menuPublish').disabled=true;
   const initialSha=note?.remoteSha;
   const toolbar=$('workspace').querySelector('.editor-toolbar');
   toolbar.style.pointerEvents='none';body.contentEditable='false';
@@ -443,7 +443,7 @@ async function remoteAction(task) {
     toolbar.style.pointerEvents='';body.contentEditable='true';
     $('noteTitle').disabled=$('noteSubtitle').disabled=false;
     $('noteRail').style.pointerEvents='';
-    busy=false;$('saveDraft').disabled=$('publish').disabled=false;
+    busy=false;$('menuSaveDraft').disabled=$('menuPublish').disabled=false;
   }
 }
 async function writeDraft() {
@@ -541,10 +541,7 @@ $('unlockForm').addEventListener('submit',async event=>{
   finally {button.disabled=false;}
 });
 $('newNote').addEventListener('click',()=>{loadNote(newNote());markChanged();$('noteTitle').focus();});
-$('showDrafts').addEventListener('click',()=>showDashboard().catch(error=>notice(error.message,true)));
 $('dashboardLock').addEventListener('click',lock);
-$('lockButton').addEventListener('click',lock);
-$('replaceToken').addEventListener('click',()=>{$('utilityMenu').open=false;openDialog('token');});
 $('noteTitle').addEventListener('input',markChanged);
 $('noteSubtitle').addEventListener('input',markChanged);
 body.addEventListener('input',()=>{markChanged();layoutNotes();});
@@ -569,30 +566,12 @@ $('styleSelector').addEventListener('change',event=>{
   restoreRange();document.execCommand('formatBlock',false,event.target.value);
   markChanged();
 });
-$('insertButton').addEventListener('pointerdown',retainRange);
-$('insertButton').addEventListener('click',()=>{
-  const menu=$('insertMenu');menu.hidden=!menu.hidden;
-  $('insertButton').setAttribute('aria-expanded',String(!menu.hidden));
-});
-$('insertMenu').addEventListener('click',event=>{
-  const button=event.target.closest('[data-insert]');if(!button)return;
-  $('insertMenu').hidden=true;$('insertButton').setAttribute('aria-expanded','false');
-  if(['sidenote','margin'].includes(button.dataset.insert)) insertNote(button.dataset.insert==='margin'?'margin':'sidenote');
-  else openDialog(button.dataset.insert);
-});
-document.addEventListener('click',event=>{
-  if(!event.target.closest('.insert-holder')) {$('insertMenu').hidden=true;$('insertButton').setAttribute('aria-expanded','false');}
-});
-$('contentForm').addEventListener('submit',applyDialog);
-$('cancelDialog').addEventListener('click',()=>$('contentDialog').close());
-$('deleteObject').addEventListener('click',()=>{
-  const id=dialogContext?.id;
-  if(id) {body.querySelector(`[data-object-id="${CSS.escape(id)}"]`)?.remove();delete note.objects[id];markChanged();}
-  $('contentDialog').close();
-});
-$('saveDraft').addEventListener('click',saveDraft);
-$('publish').addEventListener('click',publish);
-$('focusButton').addEventListener('click',async()=>{
+function closeCommandMenu() {
+  $('commandMenu').hidden=true;
+  $('menuButton').setAttribute('aria-expanded','false');
+}
+
+async function toggleFocus() {
   const active=!document.body.classList.contains('focus-mode');
   document.body.classList.toggle('focus-mode',active);
   $('exitFocus').hidden=!active;
@@ -601,6 +580,41 @@ $('focusButton').addEventListener('click',async()=>{
     catch {document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;notice('Full screen is unavailable in this browser.',true);}
   }
   else if(document.fullscreenElement) await document.exitFullscreen().catch(()=>{});
+}
+
+$('menuButton').addEventListener('pointerdown',retainRange);
+$('menuButton').addEventListener('click',()=>{
+  const menu=$('commandMenu');
+  menu.hidden=!menu.hidden;
+  $('menuButton').setAttribute('aria-expanded',String(!menu.hidden));
+});
+$('commandMenu').addEventListener('click',event=>{
+  const insert=event.target.closest('[data-insert]');
+  if(insert) {
+    closeCommandMenu();
+    if(['sidenote','margin'].includes(insert.dataset.insert)) insertNote(insert.dataset.insert==='margin'?'margin':'sidenote');
+    else openDialog(insert.dataset.insert);
+    return;
+  }
+  const command=event.target.closest('[data-command]');
+  if(!command) return;
+  closeCommandMenu();
+  if(command.dataset.command==='drafts') showDashboard().catch(error=>notice(error.message,true));
+  if(command.dataset.command==='save') saveDraft();
+  if(command.dataset.command==='publish') publish();
+  if(command.dataset.command==='focus') toggleFocus();
+  if(command.dataset.command==='replace-token') openDialog('token');
+  if(command.dataset.command==='lock') lock();
+});
+document.addEventListener('click',event=>{
+  if(!event.target.closest('.command-holder')) closeCommandMenu();
+});
+$('contentForm').addEventListener('submit',applyDialog);
+$('cancelDialog').addEventListener('click',()=>$('contentDialog').close());
+$('deleteObject').addEventListener('click',()=>{
+  const id=dialogContext?.id;
+  if(id) {body.querySelector(`[data-object-id="${CSS.escape(id)}"]`)?.remove();delete note.objects[id];markChanged();}
+  $('contentDialog').close();
 });
 $('exitFocus').addEventListener('click',()=>{
   document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;
