@@ -1,0 +1,10 @@
+{
+  "name": "notes-editor",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test test/*.test.mjs"},
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.4",
+    "jsdom": "^27.4.0"
+  }
+}
