@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'none'">
+  <title>Write — Notes</title>
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="stylesheet" href="tufte.css"/>
+  <link rel="stylesheet" href="editor.css"/>
+</head>
+<body class="editor-app">
+  <div id="setupView" class="gate" hidden>
+    <div class="gate-inner">
+      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <h1>Set up the editor</h1>
+      <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Notes+editor&amp;description=Write+notes+from+the+browser&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> for <code>barasch/notes</code> only, with Contents: read and write. Paste it here once. This page encrypts it before saving it in the repository.</p>
+      <p>The encrypted file is public and can be attacked by guessing passwords offline. Use a unique, randomly generated passphrase and keep it safe.</p>
+      <form id="setupForm">
+        <label>GitHub token<input id="setupToken" type="password" required autocomplete="off" spellcheck="false"></label>
+        <label>Passphrase<input id="setupPassphrase" type="password" required autocomplete="new-password" minlength="20"></label>
+        <button id="generatePassphrase" type="button" class="quiet-button">Generate a strong passphrase</button>
+        <label>Confirm passphrase<input id="confirmPassphrase" type="password" required autocomplete="new-password"></label>
+        <button type="submit">Set up editor</button>
+      </form>
+      <p class="gate-error" id="setupError" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="unlockView" class="gate" hidden>
+    <div class="gate-inner">
+      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <h1>Unlock the editor</h1>
+      <form id="unlockForm">
+        <label>Passphrase<input id="unlockPassphrase" type="password" required autocomplete="off"></label>
+        <button type="submit">Unlock</button>
+      </form>
+      <p class="gate-error" id="unlockError" role="alert"></p>
+    </div>
+  </div>
+
+  <div id="dashboardView" hidden>
+    <header class="editor-toolbar dashboard-toolbar">
+      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <button id="dashboardLock" type="button" class="quiet-button">Lock</button>
+    </header>
+    <main class="editor-shell draft-dashboard">
+      <h1>Drafts</h1>
+      <button id="newNote" type="button">New note</button>
+      <div id="draftList" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <div id="workspace" hidden>
+    <header class="editor-toolbar">
+      <a class="site-wordmark" href="index.html" aria-label="Notes home"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <button type="button" id="showDrafts" class="quiet-button">Drafts</button>
+      <div class="toolbar-tools">
+        <label class="visually-hidden" for="styleSelector">Paragraph style</label>
+        <select id="styleSelector" aria-label="Paragraph style">
+          <option value="p">Body</option><option value="h2">Section heading</option><option value="h3">Subheading</option>
+        </select>
+        <div class="insert-holder">
+          <button type="button" id="insertButton" class="insert-circle local-ok" aria-label="Insert. Local copy saved" aria-expanded="false" aria-controls="insertMenu" title="Insert · local copy saved">
+            <span></span><span></span><span></span>
+          </button>
+          <div id="insertMenu" class="insert-menu" hidden>
+            <p>Insert</p>
+            <button type="button" data-insert="sidenote">Sidenote</button>
+            <button type="button" data-insert="margin">Margin note</button>
+            <button type="button" data-insert="link">Link</button>
+            <button type="button" data-insert="image">Image</button>
+            <button type="button" data-insert="quote">Pull quote</button>
+            <button type="button" data-insert="table">Table</button>
+          </div>
+        </div>
+        <button type="button" id="saveDraft" class="quiet-button">Save draft</button>
+        <button type="button" id="publish" class="quiet-button">Publish</button>
+        <button type="button" id="focusButton" class="quiet-button">Focus</button>
+        <details class="utility-menu" id="utilityMenu">
+          <summary aria-label="More options">···</summary>
+          <div><button type="button" id="replaceToken">Replace GitHub token</button><button type="button" id="lockButton">Lock</button></div>
+        </details>
+      </div>
+    </header>
+    <button id="exitFocus" class="focus-exit quiet-button" type="button" hidden>Exit focus</button>
+    <div id="warning" class="editor-warning" role="alert" hidden></div>
+    <main class="editor-shell">
+      <article class="editor-paper" id="paper">
+        <p id="remoteStamp" class="remote-stamp">Not yet saved to GitHub</p>
+        <label class="visually-hidden" for="noteTitle">Title</label>
+        <input id="noteTitle" class="edit-title" placeholder="Title" autocomplete="off" spellcheck="true">
+        <label class="visually-hidden" for="noteSubtitle">Subtitle</label>
+        <input id="noteSubtitle" class="edit-subtitle" placeholder="Subtitle (optional)" autocomplete="off" spellcheck="true">
+        <section class="editor-section" id="editorSection">
+          <div id="editorBody" class="editor-body" contenteditable="true" role="textbox" aria-label="Note body" aria-multiline="true" spellcheck="true"><p><br></p></div>
+          <div id="noteRail" class="note-rail" aria-label="Margin notes"></div>
+        </section>
+      </article>
+    </main>
+  </div>
+
+  <dialog id="contentDialog" class="content-dialog">
+    <form id="contentForm" method="dialog">
+      <h2 id="dialogTitle"></h2>
+      <div id="dialogFields"></div>
+      <div class="dialog-actions"><button type="button" id="deleteObject" class="quiet-button" hidden>Remove</button><button type="button" id="cancelDialog" class="quiet-button">Cancel</button><button type="submit">Insert</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

@@ -448,6 +448,41 @@ div.table-wrapper {
     font-family: "Trebuchet MS", "Gill Sans", "Gill Sans MT", sans-serif;
 }
 
+section > div.editor-published-table {
+    width: 55%;
+    margin: 1.5rem 0 2.5rem;
+}
+
+section > div.editor-published-table.fullwidth {
+    width: 90%;
+}
+
+.note-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1rem;
+    line-height: 1.35;
+}
+
+.note-table caption {
+    padding: 0 0 .65rem;
+    text-align: left;
+    font-style: italic;
+}
+
+.note-table th,
+.note-table td {
+    padding: .5rem .8rem .5rem 0;
+    border-bottom: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+}
+
+.note-table th { font-weight: 600; }
+.note-table .numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.pullquote { margin: 2.3rem 0; font-style: italic; }
+.pullquote footer { font-style: normal; }
+
 .sans {
     font-family: "Gill Sans", "Gill Sans MT", Calibri, sans-serif;
     letter-spacing: .03em;
@@ -597,6 +632,12 @@ label.margin-toggle:not(.sidenote-number) {
     div.table-wrapper,
     table {
         width: 85%;
+    }
+
+    section > div.editor-published-table,
+    section > div.editor-published-table.fullwidth {
+        width: 100%;
+        max-width: 100%;
     }
 
     img {
