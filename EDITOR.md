@@ -18,6 +18,10 @@ remain outside the editor. The public index does not link to the editor.
    to the repository or browser storage. No server or other authenticated
    service is involved beyond GitHub.
 
+Anyone can download the encrypted token record and try guesses offline. The
+generated random passphrase protects against this; a reused or guessable
+password does not.
+
 Setup happens once for this repository. Other devices use the same passphrase to
 unlock the shared encrypted token record; their *unsaved* work does not sync.
 Every new tab and reload asks for the passphrase. **Lock** saves local changes

@@ -15,7 +15,8 @@
     <div class="gate-inner">
       <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
       <h1>Set up the editor</h1>
-      <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Notes+editor&amp;description=Write+notes+from+the+browser&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> for <code>barasch/notes</code>, with Contents: read and write. Paste it here once. This page encrypts it before saving it in the repository.</p>
+      <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Notes+editor&amp;description=Write+notes+from+the+browser&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> for <code>barasch/notes</code> only, with Contents: read and write. Paste it here once. This page encrypts it before saving it in the repository.</p>
+      <p>The encrypted file is public and can be attacked by guessing passwords offline. Use a unique, randomly generated passphrase and keep it safe.</p>
       <form id="setupForm">
         <label>GitHub token<input id="setupToken" type="password" required autocomplete="off" spellcheck="false"></label>
         <label>Passphrase<input id="setupPassphrase" type="password" required autocomplete="new-password" minlength="20"></label>
