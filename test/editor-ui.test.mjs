@@ -69,10 +69,8 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(githubWrites,1,'autosaving has made no GitHub API write');
   assert.match(document.getElementById('remoteStamp').textContent,/Not yet saved/);
   document.getElementById('saveDraft').click();
-  await until(()=>document.getElementById('contentDialog').open);
-  assert.equal(document.querySelector('#dialogFields [name=slug]').value,'a-recovered-note');
-  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>document.getElementById('remoteStamp').textContent.startsWith('Draft saved to GitHub:'));
+  assert.equal(document.getElementById('contentDialog').open,false,'the title-derived address needs no second confirmation');
   await until(()=>!document.getElementById('saveDraft').disabled);
   assert.equal(githubWrites,2,'Save draft is the only writing action after setup');
   assert.match(files.get('drafts/a-recovered-note.json').text,/survives a reload/);

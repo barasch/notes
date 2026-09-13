@@ -46,8 +46,9 @@ images, but it is specific to this browser/device. Clearing site data removes
 unsaved local copies. Keep only one editing tab for a particular note at a time.
 
 **Save draft** alone commits a JSON source draft to the `drafts` branch. The
-initial filename is derived from the title and can be adjusted before the first
-save; afterward it stays stable even if the title changes. The time above the
+initial filename is derived from the title in one click; if it is taken or the
+title cannot form an address, the editor asks for another. After saving, the
+filename stays stable even if the title changes. The time above the
 title shows the last explicit GitHub draft save. Autosaves never touch GitHub or
 advance that time. **Publish** first saves the editable source draft, then makes
 one fast-forward commit to `main` containing the article, image files, and

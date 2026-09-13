@@ -458,7 +458,24 @@ async function writeDraft() {
 async function chooseAddress(intent='save') {
   if(!note.title.trim()) {notice('Add a title before saving to GitHub.',true);$('noteTitle').focus();return false;}
   if(note.slug) return true;
-  openDialog('address');dialogContext.intent=intent;return false;
+  const suggested=slugify(note.title);
+  if(!suggested) {
+    openDialog('address');dialogContext.intent=intent;
+    notice('Choose a filename for this title.',true);
+    return false;
+  }
+  try {
+    const [draft,publicPage]=await Promise.all([
+      github.file(`drafts/${suggested}.json`,'drafts'),github.file(`${suggested}.html`,'main'),
+    ]);
+    if(draft || publicPage) {
+      openDialog('address');dialogContext.intent=intent;
+      notice('That address is already in use. Choose another filename.',true);
+      return false;
+    }
+    note.slug=suggested;markChanged();
+    return true;
+  } catch(error) {notice(`Could not check the address: ${error.message}`,true);return false;}
 }
 async function saveDraft() {if(await chooseAddress()) await writeDraft();}
 async function publish() {
