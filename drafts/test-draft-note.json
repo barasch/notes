@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "099d7914-04a1-4904-be10-99f2741f9134",
+  "slug": "test-draft-note",
+  "title": "Test draft note",
+  "subtitle": "An exploration of the browser-based writer",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "h2",
+      "html": "Section One"
+    },
+    {
+      "type": "h3",
+      "html": "First subsection"
+    },
+    {
+      "type": "p",
+      "html": "This is the first body text in the note.<span class=\"editor-reference\" data-note-id=\"e1ff2151-570c-4b6d-ba3a-7153111f3429\" contenteditable=\"false\">·</span> The paragraph continues after a numbered sidenote."
+    },
+    {
+      "type": "p",
+      "html": "Let&#39;s try another paragraph and another sidenote.<span class=\"editor-reference\" data-note-id=\"90f12b4c-0e65-471c-a96a-4b41a4658126\" contenteditable=\"false\">·</span>"
+    }
+  ],
+  "notes": {
+    "e1ff2151-570c-4b6d-ba3a-7153111f3429": {
+      "type": "sidenote",
+      "html": "And it deserves a numbered sidenote."
+    },
+    "90f12b4c-0e65-471c-a96a-4b41a4658126": {
+      "type": "sidenote",
+      "html": "Sidenote number two!"
+    }
+  },
+  "objects": {},
+  "updatedAt": 1789345254278,
+  "remoteSavedAt": "2026-09-14T00:20:54.624Z"
+}
