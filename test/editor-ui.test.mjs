@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {JSDOM} from 'jsdom';
 import {indexedDB} from 'fake-indexeddb';
-import {utf8Base64, unlockCredential, recoveryAll} from '../editor-core.js';
+import {utf8Base64, unlockCredential, createCredential, recoveryAll, editorBlockHTML, renderPublishedPage} from '../editor-core.js';
 
 const source=readFileSync(new URL('../editor.html',import.meta.url),'utf8');
 const files=new Map();
@@ -140,4 +140,89 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(Object.values(draft.objects)[0].type,'table');
   assert.match(draft.blocks[0].html,/another-note.html/);
   second.window.close();
+});
+
+test('style shortcuts follow title, subtitle, heading, subsection, body; an end reference remains editable',async()=>{
+  const passphrase='a-separate-long-passphrase-for-keyboard-tests';
+  const {record:encrypted}=await createCredential('token-for-keyboard-tests',passphrase);
+  files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'keyboard-auth'});
+  const dom=page('https://barasch.github.io/notes/editor.html');
+  await import('../editor.js?keyboard');
+  await until(()=>!document.getElementById('unlockView').hidden);
+  document.getElementById('unlockPassphrase').value=passphrase;
+  document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  document.getElementById('newNote').click();
+
+  const body=document.getElementById('editorBody'),selector=document.getElementById('styleSelector');
+  const title=document.getElementById('noteTitle'),subtitle=document.getElementById('noteSubtitle');
+  const key=(target,value,options={})=>target.dispatchEvent(new window.KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true,...options}));
+  const caret=(node,offset)=>{
+    const range=document.createRange();range.setStart(node,offset);range.collapse(true);
+    window.getSelection().removeAllRanges();window.getSelection().addRange(range);
+    document.dispatchEvent(new window.Event('selectionchange'));
+  };
+  assert.deepEqual([...selector.options].map(option=>[option.value,option.textContent]),[
+    ['h2','Heading'],['h3','Subsection'],['p','Body'],
+  ]);
+  assert.equal(document.querySelectorAll('#menuButton svg path').length,1,'three lines share one uniform SVG stroke');
+  title.value='A new note';key(title,'Enter');assert.equal(document.activeElement,subtitle);
+  subtitle.value='A subtitle';key(subtitle,'Enter');
+  assert.equal(body.firstElementChild.tagName,'H2');
+  assert.equal(selector.value,'h2');
+  const heading=body.firstElementChild;heading.textContent='A heading';caret(heading.firstChild,heading.firstChild.length);
+  key(body,'Enter');assert.deepEqual([...body.children].map(block=>block.tagName),['H2','H3']);
+  assert.equal(selector.value,'h3');
+  const subsection=body.lastElementChild;subsection.textContent='A subsection';caret(subsection.firstChild,subsection.firstChild.length);
+  key(body,'Enter');assert.equal(body.lastElementChild.tagName,'P');assert.equal(selector.value,'p');
+  const paragraph=body.lastElementChild;paragraph.textContent='Body text';caret(paragraph.firstChild,paragraph.firstChild.length);
+  key(body,'Enter');assert.equal(body.lastElementChild.tagName,'P','body continues as body');
+  key(body,'Tab',{shiftKey:true});assert.equal(body.lastElementChild.tagName,'H3');
+  key(body,'Tab',{shiftKey:true});assert.equal(body.lastElementChild.tagName,'H2');
+  key(body,'Tab');assert.equal(body.lastElementChild.tagName,'H3');
+  selector.value='p';selector.dispatchEvent(new window.Event('change',{bubbles:true}));
+  assert.equal(body.lastElementChild.tagName,'P');
+  assert.equal(window.getSelection().anchorNode,body.lastElementChild,'the caret stays in the restyled empty block');
+
+  heading.innerHTML='<strong>Before after</strong>';
+  caret(heading.firstChild.firstChild,6);
+  key(body,'Enter');
+  assert.equal(heading.textContent,'Before');
+  assert.equal(heading.nextElementSibling.tagName,'H3');
+  assert.equal(heading.nextElementSibling.textContent,' after','Return preserves text after the caret');
+
+  body.innerHTML='<p>End of paragraph.</p>';
+  const last=body.firstElementChild;caret(last.firstChild,last.firstChild.length);
+  document.getElementById('menuButton').click();
+  document.querySelector('[data-insert=sidenote]').click();
+  const marker=last.querySelector('[data-note-id]');
+  const tail=last.querySelector('[data-note-tail]');
+  assert.ok(marker && tail,'an editable target follows the end-of-paragraph marker');
+  assert.equal(tail.previousElementSibling,marker);
+  assert.equal(tail.textContent,'\u200b');
+  assert.equal(tail.contentEditable,'true');
+  body.focus();caret(tail.firstChild,tail.firstChild.length);
+  tail.firstChild.appendData(' Continuing here.');
+  body.dispatchEvent(new window.Event('input',{bubbles:true}));
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
+  const {key:recoveryKey}=await unlockCredential(encrypted,passphrase);
+  const records=await recoveryAll(recoveryKey);
+  const saved=records.find(record=>record.document.title==='A new note').document;
+  assert.match(saved.blocks[0].html,/data-note-tail="true"/);
+  assert.match(saved.blocks[0].html,/Continuing here/);
+  const rendered=editorBlockHTML(saved.blocks[0],saved);
+  assert.match(rendered,/data-note-tail="true"/,'the click target survives local recovery');
+  saved.slug='a-new-note';
+  const published=renderPublishedPage(saved);
+  assert.match(published,/Continuing here/);
+  assert.doesNotMatch(published,/data-note-tail|\u200b/,'the editor-only target is absent from the published note');
+  caret(tail.firstChild,tail.firstChild.length);
+  key(body,'Tab',{shiftKey:true});
+  assert.equal(body.firstElementChild.tagName,'H3');
+  document.querySelector('.rail-note button').click();
+  assert.equal(body.querySelector('[data-note-id]'),null,'a reference remains removable after restyling');
+  assert.match(body.textContent,/Continuing here/,'removing a reference does not erase subsequent writing');
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
+  dom.window.dispatchEvent(new dom.window.Event('pagehide'));
+  dom.window.close();
 });
