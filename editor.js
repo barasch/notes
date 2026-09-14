@@ -102,16 +102,110 @@ function focusBodyEnd() {
   const selection=window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
   body.focus();
 }
+const paragraphStyles=['h2','h3','p'];
+function currentBlock() {
+  const node=window.getSelection().anchorNode;
+  const block=(node?.nodeType===1?node:node?.parentElement)?.closest?.('p,h2,h3');
+  return block?.parentElement===body?block:null;
+}
+function selectStart(block) {
+  const range=document.createRange();range.selectNodeContents(block);range.collapse(true);
+  const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+  body.focus();retainRange();
+  $('styleSelector').value=block.tagName.toLowerCase();
+}
+function restyleBlock(block,style) {
+  if(block.tagName.toLowerCase()===style) return block;
+  const selection=window.getSelection(),range=selection.rangeCount?selection.getRangeAt(0):null;
+  // Snapshot both ends before replacing the element: moving child nodes would
+  // otherwise leave a live DOM Range pointing into the discarded heading.
+  const position=(node,offset)=>{
+    if(!node || (node!==block && !block.contains(node))) return null;
+    const path=[];
+    while(node!==block) {
+      const parent=node.parentNode;path.unshift([...parent.childNodes].indexOf(node));node=parent;
+    }
+    return {path,offset};
+  };
+  const start=range&&position(range.startContainer,range.startOffset);
+  const end=range&&position(range.endContainer,range.endOffset);
+  const replacement=document.createElement(style);replacement.innerHTML=block.innerHTML;
+  block.replaceWith(replacement);
+  if(start&&end) {
+    const resolve=point=>{
+      let node=replacement;
+      for(const index of point.path) node=node.childNodes[index]||node;
+      return [node,Math.min(point.offset,node.nodeType===3?node.length:node.childNodes.length)];
+    };
+    const next=document.createRange();next.setStart(...resolve(start));next.setEnd(...resolve(end));
+    selection.removeAllRanges();selection.addRange(next);
+  }
+  $('styleSelector').value=style;retainRange();markChanged();
+  return replacement;
+}
+function advanceBlock(event) {
+  if(event.isComposing) return;
+  const block=currentBlock(),selection=window.getSelection();
+  if(!block || !selection.rangeCount) return;
+  const range=selection.getRangeAt(0);
+  if(!block.contains(range.startContainer) || !block.contains(range.endContainer)) return;
+  event.preventDefault();
+  range.deleteContents();
+  const trailingRange=document.createRange();
+  trailingRange.setStart(range.startContainer,range.startOffset);
+  trailingRange.setEnd(block,block.childNodes.length);
+  const trailing=trailingRange.extractContents();
+  const style=paragraphStyles[Math.min(paragraphStyles.indexOf(block.tagName.toLowerCase())+1,2)];
+  const next=document.createElement(style);next.append(trailing);
+  if(!next.hasChildNodes()) next.append(document.createElement('br'));
+  if(!block.hasChildNodes()) block.append(document.createElement('br'));
+  block.after(next);
+  selectStart(next);
+  // Splitting a paragraph after a reference must not strand its marker again.
+  for(const marker of block.querySelectorAll('[data-note-id]')) ensureReferenceTail(marker);
+  markChanged();
+}
+function focusHeading() {
+  let first=body.firstElementChild;
+  if(first?.tagName==='H2') {selectStart(first);return;}
+  if(first?.matches('p,h3') && !first.textContent.replace(/\u200b/g,'').trim() && !first.querySelector('[data-note-id]')) {
+    first=restyleBlock(first,'h2');
+  } else {
+    first=document.createElement('h2');first.append(document.createElement('br'));body.prepend(first);markChanged();
+  }
+  selectStart(first);
+}
+function ensureReferenceTail(marker) {
+  const block=marker.closest('p,h2,h3');
+  if(block?.parentElement!==body) return null;
+  const after=document.createRange();after.setStartAfter(marker);after.setEnd(block,block.childNodes.length);
+  if(after.toString().replace(/\u200b/g,'').trim()) return null;
+  let sibling=marker.nextSibling;
+  while(sibling?.nodeType===3 && !sibling.textContent) sibling=sibling.nextSibling;
+  if(sibling?.nodeType===1 && sibling.hasAttribute('data-note-tail')) return sibling;
+  const tail=document.createElement('span');tail.className='editor-note-tail';tail.dataset.noteTail='true';
+  tail.contentEditable='true';tail.append(document.createTextNode('\u200b'));
+  marker.after(tail);
+  return tail;
+}
 function refreshBody() {
-  body.innerHTML=note.blocks.map(block=>editorBlockHTML(block,note)).join('') || '<p><br></p>';
+  body.innerHTML=note.blocks.map(block=>editorBlockHTML(block,note)).join('') || '<h2><br></h2>';
+  for(const marker of body.querySelectorAll('[data-note-id]')) ensureReferenceTail(marker);
   layoutNotes();
 }
-function renderNote(noteId,marker) {
+function renderNote(noteId) {
   const data=note.notes[noteId]; if(!data) return null;
   const aside=document.createElement('aside'); aside.className='rail-note'; aside.dataset.noteId=noteId;
   const remove=document.createElement('button'); remove.type='button'; remove.textContent='×'; remove.title='Remove note';
   remove.addEventListener('click',()=>{
-    marker.remove(); delete note.notes[noteId]; aside.remove(); markChanged(); layoutNotes();
+    const current=body.querySelector(`[data-note-id="${CSS.escape(noteId)}"]`);
+    const tail=current?.nextElementSibling;
+    if(tail?.hasAttribute('data-note-tail')) {
+      const text=tail.textContent.replace(/\u200b/g,'');
+      if(text) tail.replaceWith(document.createTextNode(text));
+      else tail.remove();
+    }
+    current?.remove(); delete note.notes[noteId]; aside.remove(); markChanged(); layoutNotes();
   });
   const field=document.createElement('div'); field.className='note-text'; field.contentEditable='true';
   field.setAttribute('role','textbox'); field.setAttribute('aria-label',data.type==='margin'?'Margin note':'Sidenote');
@@ -143,7 +237,7 @@ function layoutNotes() {
     const id=marker.dataset.noteId, data=note.notes[id]; if(!data) continue;
     marker.textContent=data.type==='margin'?'⊕':String(++sidenoteNumber);
     let aside=old.get(id); old.delete(id);
-    if(!aside) {aside=renderNote(id,marker);rail.append(aside);}
+    if(!aside) {aside=renderNote(id);rail.append(aside);}
     const sectionTop=$('editorSection').getBoundingClientRect().top;
     const preferred=marker.getBoundingClientRect().top-sectionTop;
     aside.style.top=`${Math.max(preferred,lowerEdge)}px`;
@@ -250,6 +344,8 @@ function insertNote(type) {
   marker.contentEditable='false';marker.dataset.noteId=id;marker.textContent=type==='margin'?'⊕':'·';
   const selection=window.getSelection(), range=selection.getRangeAt(0);
   range.collapse(false);range.insertNode(marker);range.setStartAfter(marker);range.collapse(true);
+  const tail=ensureReferenceTail(marker);
+  if(tail) range.setStart(tail.firstChild,tail.firstChild.length);
   selection.removeAllRanges();selection.addRange(range);
   note.notes[id]={type,html:''};
   markChanged();layoutNotes();openNote(id);
@@ -544,8 +640,27 @@ $('newNote').addEventListener('click',()=>{loadNote(newNote());markChanged();$('
 $('dashboardLock').addEventListener('click',lock);
 $('noteTitle').addEventListener('input',markChanged);
 $('noteSubtitle').addEventListener('input',markChanged);
+$('noteTitle').addEventListener('keydown',event=>{
+  if(event.key==='Enter' && !event.isComposing) {event.preventDefault();$('noteSubtitle').focus();}
+});
+$('noteSubtitle').addEventListener('keydown',event=>{
+  if(event.key==='Enter' && !event.isComposing) {event.preventDefault();focusHeading();}
+});
 body.addEventListener('input',()=>{markChanged();layoutNotes();});
 body.addEventListener('paste',plainTextPaste);
+body.addEventListener('keydown',event=>{
+  if(event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
+  if(event.key==='Tab') {
+    const block=currentBlock();if(!block) return;
+    event.preventDefault();
+    const index=paragraphStyles.indexOf(block.tagName.toLowerCase());
+    restyleBlock(block,paragraphStyles[Math.max(0,Math.min(2,index+(event.shiftKey?-1:1)))]);
+  } else if(event.key==='Enter' && !event.shiftKey) advanceBlock(event);
+});
+// Mobile keyboards often dispatch beforeinput without a useful keydown.
+body.addEventListener('beforeinput',event=>{
+  if(event.inputType==='insertParagraph') advanceBlock(event);
+});
 body.addEventListener('load',event=>{if(event.target.tagName==='IMG') layoutNotes();},true);
 document.fonts?.ready.then(layoutNotes);
 body.addEventListener('click',event=>{
@@ -559,12 +674,13 @@ document.addEventListener('selectionchange',()=>{
   if(!node) return;
   retainRange();
   if(!body.contains(node)) return;
-  const block=node.nodeType===1?node.closest('p,h2,h3'):node.parentElement?.closest('p,h2,h3');
-  if(block) $('styleSelector').value=['p','h2','h3'].includes(block.tagName.toLowerCase())?block.tagName.toLowerCase():'p';
+  const block=currentBlock();
+  if(block) $('styleSelector').value=block.tagName.toLowerCase();
 });
 $('styleSelector').addEventListener('change',event=>{
-  restoreRange();document.execCommand('formatBlock',false,event.target.value);
-  markChanged();
+  restoreRange();
+  const block=currentBlock();
+  if(block) restyleBlock(block,event.target.value);
 });
 function closeCommandMenu() {
   $('commandMenu').hidden=true;

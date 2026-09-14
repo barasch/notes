@@ -24,7 +24,7 @@ export function safeURL(value) {
 export function newNote() {
   return {
     version: 1, id: crypto.randomUUID(), slug: '', title: '', subtitle: '',
-    publicationDate: '', remoteSha: null, blocks: [{type:'p',html:''}],
+    publicationDate: '', remoteSha: null, blocks: [{type:'h2',html:''}],
     notes: {}, objects: {}, updatedAt: Date.now(),
   };
 }
@@ -55,7 +55,7 @@ export function cleanInline(html, notes, {published = false, allowNotes = true} 
     return `${needsBreak ? '<br>' : ''}${walk(node)}`;
   }).join('');
   const walk = node => {
-    if (node.nodeType === 3) return escapeHTML(node.nodeValue);
+    if (node.nodeType === 3) return escapeHTML(published ? node.nodeValue.replace(/\u200b/g,'') : node.nodeValue);
     if (node.nodeType !== 1) return '';
     const tag = node.tagName.toLowerCase();
     if (tag === 'span' && allowNotes && node.hasAttribute('data-note-id')) {
@@ -69,6 +69,10 @@ export function cleanInline(html, notes, {published = false, allowNotes = true} 
         ? `<label for="${noteId}" class="margin-toggle">&#8853;</label>`
         : `<label for="${noteId}" class="margin-toggle sidenote-number"></label>`;
       return `${label}<input type="checkbox" id="${noteId}" class="margin-toggle"/><span class="${note.type === 'margin' ? 'marginnote' : 'sidenote'}">${cleanInline(note.html, notes, {allowNotes:false})}</span>`;
+    }
+    if (tag === 'span' && allowNotes && node.hasAttribute('data-note-tail')) {
+      const inner=walkChildren([...node.childNodes]);
+      return published ? inner : `<span class="editor-note-tail" data-note-tail="true" contenteditable="true">${inner || '&#8203;'}</span>`;
     }
     const inner = walkChildren([...node.childNodes]);
     if (tag === 'br') return '<br>';
