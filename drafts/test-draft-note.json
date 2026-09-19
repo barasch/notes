@@ -2,7 +2,7 @@
   "version": 1,
   "id": "099d7914-04a1-4904-be10-99f2741f9134",
   "slug": "test-draft-note",
-  "title": "Test draft note",
+  "title": "From God to the Atom and Back",
   "subtitle": "An exploration of the browser-based writer",
   "publicationDate": "",
   "blocks": [
@@ -16,17 +16,21 @@
     },
     {
       "type": "p",
-      "html": "This is the first body text in the note.<span class=\"editor-reference\" data-note-id=\"e1ff2151-570c-4b6d-ba3a-7153111f3429\" contenteditable=\"false\">·</span> The paragraph continues after a numbered sidenote."
+      "html": "        This article reviews a recent publication by a team of eleven co-authors at Pragma Research, a private firm in Washington State. The project materials, including a technical paper and a book-length discussion, introduce a framework for a Theory of Everything—that is, a theory of fundamental physics that may be capable of “unifying” physics—called Observer Patch Holography, also the name of the project’s GitHub repository.<span class=\"editor-reference\" data-note-id=\"e1ff2151-570c-4b6d-ba3a-7153111f3429\" contenteditable=\"false\">·</span> "
     },
     {
       "type": "p",
-      "html": "Let&#39;s try another paragraph and another sidenote.<span class=\"editor-reference\" data-note-id=\"90f12b4c-0e65-471c-a96a-4b41a4658126\" contenteditable=\"false\">·</span>"
+      "html": "Let&#39;s try another paragraph and another sidenote.<span class=\"editor-reference\" data-note-id=\"90f12b4c-0e65-471c-a96a-4b41a4658126\" contenteditable=\"false\">·</span><span class=\"editor-note-tail\" data-note-tail=\"true\" contenteditable=\"true\">​</span>"
+    },
+    {
+      "type": "p",
+      "html": "<span class=\"editor-note-tail\" data-note-tail=\"true\" contenteditable=\"true\">​</span>"
     }
   ],
   "notes": {
     "e1ff2151-570c-4b6d-ba3a-7153111f3429": {
       "type": "sidenote",
-      "html": "And it deserves a numbered sidenote."
+      "html": "Bernhard Mueller et al., Pragma Research Inc., <a href=\"https://github.com/FloatingPragma/observer-patch-holography/blob/4293d9f71b072de17d9d50c15201f117b13fef68/flagship/from_observer_consensus_to_standard_physics.pdf\">Finite Observer Consensus as a Reconstruction Principle: Normal Forms, the Standard Model Lie Type, and a Route to the Einstein Field Equation</a>, release r2016 (August 5, 2026); Bernhard Mueller, <a href=\"https://github.com/FloatingPragma/observer-patch-holography/blob/4293d9f71b072de17d9d50c15201f117b13fef68/book/reverse-engineering-reality-book.pdf\">Reverse Engineering Reality</a> (2026). The project is public on GitHub and ongoing work is invited."
     },
     "90f12b4c-0e65-471c-a96a-4b41a4658126": {
       "type": "sidenote",
@@ -34,6 +38,6 @@
     }
   },
   "objects": {},
-  "updatedAt": 1789345254278,
-  "remoteSavedAt": "2026-09-14T00:20:54.624Z"
+  "updatedAt": 1789852117611,
+  "remoteSavedAt": "2026-09-19T21:08:38.080Z"
 }
