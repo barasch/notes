@@ -3,20 +3,32 @@
   "id": "099d7914-04a1-4904-be10-99f2741f9134",
   "slug": "test-draft-note",
   "title": "From God to the Atom and Back",
-  "subtitle": "An exploration of the browser-based writer",
+  "subtitle": "A travelogue from the frontier of fundamental physics: \"Looks like Ancient Greece\"",
   "publicationDate": "",
   "blocks": [
     {
       "type": "h2",
-      "html": "Section One"
+      "html": "Origins"
     },
     {
       "type": "h3",
-      "html": "First subsection"
+      "html": "An ancient opposition"
     },
     {
       "type": "p",
-      "html": "        This article reviews a recent publication by a team of eleven co-authors at Pragma Research, a private firm in Washington State. The project materials, including a technical paper and a book-length discussion, introduce a framework for a Theory of Everything—that is, a theory of fundamental physics that may be capable of “unifying” physics—called Observer Patch Holography, also the name of the project’s GitHub repository.<span class=\"editor-reference\" data-note-id=\"e1ff2151-570c-4b6d-ba3a-7153111f3429\" contenteditable=\"false\">·</span> "
+      "html": "When I was a little boy, likely in response to an aggravating series of questions, my father (a physician) explained that reality is basically made up of little bits of stuff--protons, neutrons, electrons, photons--and the fundamental forces that push them around. The forces bind subatomic particles into atoms, electromagnetism binds atoms into crystals and molecules, molecules into  Like most kids, my exposure to this ontology was lightweight until at least high school. I recall a few mentions in science class, conversations with my parents or brother, a book about black holes for young readers, and exhibition materials at the &quot;earth and space&quot; museum. My dad and the wider culture were introducing me to the long tradition of materialist reductionism, a lineage often identified with Democritus, from whom we get the word &quot;atom.&quot;"
+    },
+    {
+      "type": "p",
+      "html": "I knew the name Plato pretty early, too, but he was down the hall in a class on philosophy or religion. I had no occasion to examine Plato&#39;s alternative to the Atomist school until years later. In his Timaeus, "
+    },
+    {
+      "type": "p",
+      "html": "In recent years, as I have nourished an interest in contemporary "
+    },
+    {
+      "type": "p",
+      "html": "Scientists in fundamental physics these days are circling an old conflict about the nature of reality. begins with Ancient Greek physics   This article reviews a recent publication by a team of eleven co-authors at Pragma Research, a private firm in Washington State. The project materials, including a technical paper and a book-length discussion, introduce a framework for a Theory of Everything—that is, a theory of fundamental physics that may be capable of “unifying” physics—called Observer Patch Holography, also the name of the project’s GitHub repository."
     },
     {
       "type": "p",
@@ -28,16 +40,12 @@
     }
   ],
   "notes": {
-    "e1ff2151-570c-4b6d-ba3a-7153111f3429": {
-      "type": "sidenote",
-      "html": "Bernhard Mueller et al., Pragma Research Inc., <a href=\"https://github.com/FloatingPragma/observer-patch-holography/blob/4293d9f71b072de17d9d50c15201f117b13fef68/flagship/from_observer_consensus_to_standard_physics.pdf\">Finite Observer Consensus as a Reconstruction Principle: Normal Forms, the Standard Model Lie Type, and a Route to the Einstein Field Equation</a>, release r2016 (August 5, 2026); Bernhard Mueller, <a href=\"https://github.com/FloatingPragma/observer-patch-holography/blob/4293d9f71b072de17d9d50c15201f117b13fef68/book/reverse-engineering-reality-book.pdf\">Reverse Engineering Reality</a> (2026). The project is public on GitHub and ongoing work is invited."
-    },
     "90f12b4c-0e65-471c-a96a-4b41a4658126": {
       "type": "sidenote",
       "html": "Sidenote number two!"
     }
   },
   "objects": {},
-  "updatedAt": 1789852117611,
-  "remoteSavedAt": "2026-09-19T21:08:38.080Z"
+  "updatedAt": 1789934496026,
+  "remoteSavedAt": "2026-09-20T20:01:36.573Z"
 }
