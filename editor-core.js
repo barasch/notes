@@ -78,6 +78,7 @@ export function cleanInline(html, notes, {published = false, allowNotes = true} 
     if (tag === 'br') return '<br>';
     if (tag === 'b' || tag === 'strong') return `<strong>${inner}</strong>`;
     if (tag === 'i' || tag === 'em') return `<em>${inner}</em>`;
+    if (tag === 'u') return `<u>${inner}</u>`;
     if (tag === 'cite' || tag === 'sup' || tag === 'sub') return `<${tag}>${inner}</${tag}>`;
     if (tag === 'a') {
       const href = safeURL(node.getAttribute('href'));
