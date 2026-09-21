@@ -35,6 +35,17 @@ function githubStamp() {
   $('remoteStamp').textContent=note?.remoteSavedAt
     ? `Draft saved to GitHub: ${new Date(note.remoteSavedAt).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}`
     : 'Not yet saved to GitHub';
+  updateCollapsedHeader();
+}
+function updateCollapsedHeader() {
+  const collapsed=$('collapsedNote');
+  if(!note || $('workspace').hidden || !note.remoteSavedAt) {collapsed.hidden=true;return;}
+  const title=$('noteTitle'),toolbar=$('workspace').querySelector('.editor-toolbar');
+  const scrolledPastTitle=title.getBoundingClientRect().bottom<=toolbar.getBoundingClientRect().bottom+8;
+  collapsed.hidden=!scrolledPastTitle;
+  if(!scrolledPastTitle) return;
+  $('collapsedTitle').textContent=title.value.trim()||'Untitled note';
+  $('collapsedSubtitle').textContent=$('noteSubtitle').value.trim();
 }
 function localSnapshot() {
   if (!note) return null;
@@ -293,19 +304,27 @@ async function showDashboard() {
     entries.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
     for(const entry of entries) {
       const row=document.createElement('div'); row.className='draft-row';
-      const button=document.createElement('button'); button.type='button'; button.textContent=entry.title;
+      const button=document.createElement('button'); button.type='button'; button.className='draft-title';button.textContent=entry.title;
       button.addEventListener('click',()=>openDraft(entry));
+      const actions=document.createElement('div');actions.className='draft-actions';
       const side=document.createElement('small');side.textContent=entry.kind==='local'?'Local recovery':'GitHub draft';
-      row.append(button,side);list.append(row);
+      const saveAs=document.createElement('button');saveAs.type='button';saveAs.className='save-as';saveAs.textContent='Save as';
+      saveAs.addEventListener('click',()=>openDialog('save-as',null,{entry}));
+      actions.append(side,saveAs);row.append(button,actions);list.append(row);
     }
   } catch(error) {list.textContent=`Could not load drafts: ${error.message}`;}
 }
+async function entryDocument(entry) {
+  if(entry.kind==='local') return validateNote(structuredClone(entry.document));
+  const file=await github.file(`drafts/${entry.slug}.json`,'drafts');
+  if(!file) throw new Error('That draft no longer exists on GitHub.');
+  const loaded=validateNote(JSON.parse(file.text));loaded.remoteSha=file.sha;
+  return loaded;
+}
 async function openDraft(entry) {
   try {
-    if(entry.kind==='local') {loadNote(entry.document,true);return;}
-    const file=await github.file(`drafts/${entry.slug}.json`,'drafts');
-    const loaded=validateNote(JSON.parse(file.text));loaded.remoteSha=file.sha;
-    loadNote(loaded);
+    const loaded=await entryDocument(entry);
+    loadNote(loaded,entry.kind==='local');
   } catch(error) {notice(`Could not open draft: ${error.message}`,true);}
 }
 async function resumeRequested() {
@@ -396,20 +415,28 @@ function checkbox(name,label,value=false) {
   const input=document.createElement('input');input.type='checkbox';input.name=name;input.checked=value;
   element.append(input,label);return element;
 }
-function openDialog(type,id=null) {
+function openDialog(type,id=null,context={}) {
   retainRange();
   const object=type==='note'?note.notes[id]:id?note.objects[id]:null;
-  dialogContext={type,id};
+  dialogContext={type,id,...context};
   const fields=$('dialogFields');fields.replaceChildren();
-  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',note:'Edit note',token:'Replace GitHub token'}[type];
+  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',note:'Edit note',token:'Replace GitHub token','save-as':'Save draft as'}[type];
   $('dialogTitle').textContent=heading;
   $('deleteObject').hidden=!id||type==='note';
-  $('contentForm').querySelector('[type=submit]').textContent=id?'Save':'Insert';
+  const submit=$('contentForm').querySelector('[type=submit]');submit.disabled=false;submit.textContent=id?'Save':'Insert';
   if(type==='address') {
     fields.append(fieldHTML('slug','Public filename (without .html)',slugify(note.title)));
     $('contentForm').querySelector('[type=submit]').textContent='Save draft';
   } else if(type==='link') {
-    fields.append(fieldHTML('text','Link text',selectedRange?.cloneContents().textContent||''),fieldHTML('url','Address','','url'));
+    const start=selectedRange?.startContainer;
+    const element=start?.nodeType===1?start:start?.parentElement;
+    const existing=element?.closest?.('a');
+    dialogContext.linkElement=existing&&selectedEditable.contains(existing)?existing:null;
+    fields.append(
+      fieldHTML('text','Link text',dialogContext.linkElement?.textContent||selectedRange?.cloneContents().textContent||''),
+      fieldHTML('url','Address',dialogContext.linkElement?.getAttribute('href')||'','url'),
+    );
+    if(dialogContext.linkElement) $('contentForm').querySelector('[type=submit]').textContent='Save';
   } else if(type==='image') {
     if(!id) fields.append(fieldHTML('file','Image file','','file'));
     fields.append(fieldHTML('alt','Description (alternative text)',object?.alt||''),fieldHTML('caption','Caption',object?.caption||''),checkbox('fullwidth','Full width',object?.fullwidth));
@@ -424,6 +451,9 @@ function openDialog(type,id=null) {
   } else if(type==='token') {
     fields.append(fieldHTML('token','New fine-grained GitHub token','','password'));
     $('contentForm').querySelector('[type=submit]').textContent='Replace token';
+  } else if(type==='save-as') {
+    fields.append(fieldHTML('title','New title',context.entry?.title||''));
+    $('contentForm').querySelector('[type=submit]').textContent='Create copy';
   }
   $('contentDialog').showModal();
   fields.querySelector('input,textarea')?.focus();
@@ -433,6 +463,25 @@ async function applyDialog(event) {
   const {type,id}=dialogContext||{};
   const form=$('contentForm');const data=new FormData(form);
   try {
+    if(type==='save-as') {
+      const submit=form.querySelector('[type=submit]');submit.disabled=true;
+      const title=String(data.get('title')).trim();
+      const slug=slugify(title);
+      if(!title || !slug) throw new Error('Enter a title that can form a note address.');
+      const local=(await recoveryAll(key)).some(record=>record.document.slug===slug);
+      const [existing,publicPage]=await Promise.all([
+        github.file(`drafts/${slug}.json`,'drafts'),github.file(`${slug}.html`,'main'),
+      ]);
+      if(local || existing || publicPage) throw new Error('A draft or published note already uses that title-derived address.');
+      const source=await entryDocument(dialogContext.entry);
+      const copy=structuredClone(source);
+      copy.id=crypto.randomUUID();copy.title=title;copy.slug=slug;
+      copy.remoteSha=null;copy.remoteSavedAt='';copy.publicationDate='';copy.updatedAt=Date.now();
+      await github.saveDraft(copy);
+      await recoveryPut(copy.id,copy,key);
+      $('contentDialog').close();loadNote(copy,true);notice('New draft created. The original draft is unchanged.');
+      return;
+    }
     if(type==='address') {
       const slug=slugify(String(data.get('slug')));
       if(!slug || !/^[a-z0-9-]+$/.test(slug)) throw new Error('Enter a valid note address.');
@@ -452,6 +501,17 @@ async function applyDialog(event) {
     if(type==='link') {
       const url=safeURL(data.get('url'));
       if(!url) throw new Error('Use an http(s), mailto, or relative note address.');
+      const existing=dialogContext.linkElement;
+      if(existing?.isConnected) {
+        existing.setAttribute('href',url);existing.textContent=String(data.get('text'))||url;
+        if(selectedEditable!==body) {
+          const noteId=selectedEditable.closest('[data-note-id]')?.dataset.noteId;
+          if(noteId) note.notes[noteId].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
+        }
+        markChanged();
+        $('contentDialog').close();
+        return;
+      }
       restoreRange();
       const text=String(data.get('text'))||url;
       const selection=window.getSelection();
@@ -505,7 +565,7 @@ async function applyDialog(event) {
       notice('GitHub token replaced. Local recovery remains available with the same passphrase.');
     }
     $('contentDialog').close();
-  } catch(error) {notice(error.message,true);}
+  } catch(error) {form.querySelector('[type=submit]').disabled=false;notice(error.message,true);}
 }
 function updateObject(id,object) {
   note.objects[id]=object;
@@ -519,8 +579,8 @@ async function remoteAction(task) {
   busy=true;
   $('menuSaveDraft').disabled=$('menuPublish').disabled=true;
   const initialSha=note?.remoteSha;
-  const toolbar=$('workspace').querySelector('.editor-toolbar');
-  toolbar.style.pointerEvents='none';body.contentEditable='false';
+  const controls=$('workspace').querySelector('.floating-tools');
+  controls.style.pointerEvents='none';body.contentEditable='false';
   $('noteTitle').disabled=$('noteSubtitle').disabled=true;
   $('noteRail').style.pointerEvents='none';
   try {
@@ -536,7 +596,7 @@ async function remoteAction(task) {
     if(note && note.remoteSha!==initialSha) {
       githubStamp();revision++;await saveLocal();
     }
-    toolbar.style.pointerEvents='';body.contentEditable='true';
+    controls.style.pointerEvents='';body.contentEditable='true';
     $('noteTitle').disabled=$('noteSubtitle').disabled=false;
     $('noteRail').style.pointerEvents='';
     busy=false;$('menuSaveDraft').disabled=$('menuPublish').disabled=false;
@@ -552,6 +612,7 @@ async function writeDraft() {
   });
 }
 async function chooseAddress(intent='save') {
+  localSnapshot();
   if(!note.title.trim()) {notice('Add a title before saving to GitHub.',true);$('noteTitle').focus();return false;}
   if(note.slug) return true;
   const suggested=slugify(note.title);
@@ -638,8 +699,8 @@ $('unlockForm').addEventListener('submit',async event=>{
 });
 $('newNote').addEventListener('click',()=>{loadNote(newNote());markChanged();$('noteTitle').focus();});
 $('dashboardLock').addEventListener('click',lock);
-$('noteTitle').addEventListener('input',markChanged);
-$('noteSubtitle').addEventListener('input',markChanged);
+$('noteTitle').addEventListener('input',()=>{markChanged();updateCollapsedHeader();});
+$('noteSubtitle').addEventListener('input',()=>{markChanged();updateCollapsedHeader();});
 $('noteTitle').addEventListener('keydown',event=>{
   if(event.key==='Enter' && !event.isComposing) {event.preventDefault();$('noteSubtitle').focus();}
 });
@@ -681,6 +742,37 @@ $('styleSelector').addEventListener('change',event=>{
   restoreRange();
   const block=currentBlock();
   if(block) restyleBlock(block,event.target.value);
+});
+function applyInlineFormat(command) {
+  restoreRange();
+  if(!document.execCommand?.(command,false,null)) {
+    notice(`This browser could not apply ${command}.`,true);return;
+  }
+  if(selectedEditable!==body) {
+    const id=selectedEditable.closest('[data-note-id]')?.dataset.noteId;
+    if(id) note.notes[id].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
+  }
+  selectedEditable.dispatchEvent(new window.Event('input',{bubbles:true}));
+  retainRange();
+}
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && !$('commandMenu').hidden) {event.preventDefault();closeCommandMenu();return;}
+  const modifier=(event.metaKey||event.ctrlKey)&&!event.altKey;
+  if(!modifier || event.isComposing) return;
+  const keyName=event.key.toLowerCase();
+  if(keyName==='s' && !$('workspace').hidden && !$('contentDialog').open) {
+    event.preventDefault();closeCommandMenu();saveDraft();return;
+  }
+  const surface=event.target.closest?.('.editor-body,.note-text');
+  if(!surface) return;
+  if(['b','i','u'].includes(keyName)) {
+    event.preventDefault();retainRange();
+    applyInlineFormat({b:'bold',i:'italic',u:'underline'}[keyName]);
+  } else if(keyName==='k') {
+    event.preventDefault();retainRange();openDialog('link');
+  }
+  // Undo and redo retain the browser's native editing history. Their resulting
+  // input events flow through the same encrypted local-autosave path.
 });
 function closeCommandMenu() {
   $('commandMenu').hidden=true;
@@ -739,7 +831,8 @@ $('exitFocus').addEventListener('click',()=>{
 document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement) {document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;}
 });
-window.addEventListener('resize',()=>requestAnimationFrame(layoutNotes));
+window.addEventListener('scroll',()=>requestAnimationFrame(updateCollapsedHeader),{passive:true});
+window.addEventListener('resize',()=>requestAnimationFrame(()=>{layoutNotes();updateCollapsedHeader();}));
 window.addEventListener('pagehide',()=>{if(revision!==localRevision) saveLocal();token=null;key=null;github=new GitHub();});
 window.addEventListener('pageshow',event=>{if(event.persisted) location.reload();});
 boot();

@@ -35,12 +35,21 @@ replace `editor-auth.json` manually and set up again.
 ## Writing and saving
 
 The editor places prose in the same narrow column and type as the public notes,
-with live references in the margin. Use **Style** for body text or headings;
-the circular **Insert** menu adds sidenotes, margin notes, links, images, pull
-quotes, and native tables. For a table, paste tab-separated rows from a
+with live references in the margin. The style selector and circular menu remain
+fixed at the lower right while the page scrolls. The site header remains fixed
+at the top; after a GitHub draft has been saved and the large title scrolls out
+of view, its title and subtitle appear compactly in that header. Use **Style**
+for body text or headings; the menu adds sidenotes, margin notes, links, images,
+pull quotes, and native tables. For a table, paste tab-separated rows from a
 spreadsheet or another source. The first row becomes column headings, numeric
 cells align right, and the editor supports up to 20 columns and 1,000 data rows.
 Focus enters full screen; **Exit focus** or Escape returns to editing controls.
+
+Command on macOS, or Control on Windows and Linux, combines with B, I, and U for
+bold, italic, and underline; K inserts or edits a link; and S saves the GitHub
+draft. Native Command/Control-Z, Command/Control-Shift-Z, and Control-Y continue
+to provide undo and redo. There is deliberately no keyboard shortcut for
+Publish.
 
 Local recovery is encrypted in this browser's site storage around one second
 after a pause, or at least every five seconds during continuous typing. The
@@ -52,7 +61,10 @@ unsaved local copies. Keep only one editing tab for a particular note at a time.
 **Save draft** alone commits a JSON source draft to the `drafts` branch. The
 initial filename is derived from the title in one click; if it is taken or the
 title cannot form an address, the editor asks for another. After saving, the
-filename stays stable even if the title changes. The time above the
+filename stays stable even if the title changes. **Save as** on the Drafts page
+creates and opens an independent copy under a new title-derived filename and
+note identity; it does not alter the original draft or its published page. The
+time above the
 title shows the last explicit GitHub draft save. Autosaves never touch GitHub or
 advance that time. **Publish** first saves the editable source draft, then makes
 one fast-forward commit to `main` containing the article, image files, and

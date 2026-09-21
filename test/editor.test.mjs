@@ -28,6 +28,7 @@ test('slug and generated article preserve note anchors and reject pasted scripts
   assert.match(page,/&amp; Identity/);
   assert.equal(cleanInline('<img src=x onerror=alert(1)>Safe',{}),'Safe');
   assert.equal(cleanInline('First<div>Second</div><div>Third</div>',{}),'First<br>Second<br>Third');
+  assert.equal(cleanInline('<u>Underlined</u>',{}),'<u>Underlined</u>');
 });
 
 test('tables, images, and index entries publish as semantic HTML without duplicate links',()=>{
