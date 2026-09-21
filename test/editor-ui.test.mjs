@@ -12,6 +12,10 @@ const result=(body,status=200)=>new Response(JSON.stringify(body),{status,header
 globalThis.fetch=async(url,options={})=>{
   const path=new URL(url).pathname.replace('/repos/barasch/notes','');
   const method=options.method||'GET';
+  if(method==='GET' && path==='/contents/drafts') {
+    if(!branchExists) return result({message:'Not Found'},404);
+    return result([...files.keys()].filter(name=>name.startsWith('drafts/')&&name.endsWith('.json')).map(name=>({name:name.slice('drafts/'.length)})));
+  }
   if(method==='GET' && path.startsWith('/contents/')) {
     const file=files.get(path.slice('/contents/'.length));
     return file?result({sha:file.sha,content:utf8Base64(file.text)}):result({message:'Not Found'},404);
@@ -224,5 +228,82 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
   assert.match(body.textContent,/Continuing here/,'removing a reference does not erase subsequent writing');
   await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
   dom.window.dispatchEvent(new dom.window.Event('pagehide'));
+  dom.window.close();
+});
+
+test('floating controls, compact saved title, common shortcuts, and Save as preserve the original draft',async()=>{
+  const passphrase='a-third-long-passphrase-for-interface-tests';
+  const {record:encrypted}=await createCredential('token-for-interface-tests',passphrase);
+  files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'interface-auth'});
+  const dom=page('https://barasch.github.io/notes/editor.html');
+  const commands=[];document.execCommand=command=>{commands.push(command);return true;};
+  await import('../editor.js?interface');
+  await until(()=>!document.getElementById('unlockView').hidden);
+  document.getElementById('unlockPassphrase').value=passphrase;
+  document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  document.getElementById('newNote').click();
+
+  const workspace=document.getElementById('workspace');
+  const controls=workspace.querySelector('.floating-tools');
+  assert.ok(controls);
+  assert.equal(workspace.querySelector('.editor-toolbar .floating-tools'),null,'controls are independent of the sticky header');
+  const title=document.getElementById('noteTitle'),subtitle=document.getElementById('noteSubtitle');
+  title.value='Original title';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  subtitle.value='A compact subtitle';subtitle.dispatchEvent(new window.Event('input',{bubbles:true}));
+  const editor=document.getElementById('editorBody');editor.innerHTML='<p>Formatted text</p>';
+  const text=editor.querySelector('p').firstChild;
+  const range=document.createRange();range.selectNodeContents(text);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(range);
+  document.dispatchEvent(new window.Event('selectionchange'));
+  const shortcut=(key,options={})=>editor.dispatchEvent(new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,metaKey:true,...options}));
+  shortcut('b');shortcut('i');shortcut('u');
+  assert.deepEqual(commands,['bold','italic','underline']);
+  shortcut('k');assert.equal(document.getElementById('contentDialog').open,true);
+  document.querySelector('#dialogFields [name=text]').value='Linked text';
+  document.querySelector('#dialogFields [name=url]').value='first-note.html';
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  const link=editor.querySelector('a');assert.equal(link.getAttribute('href'),'first-note.html');
+  const linkRange=document.createRange();linkRange.selectNodeContents(link.firstChild);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(linkRange);
+  document.dispatchEvent(new window.Event('selectionchange'));
+  shortcut('k');assert.equal(document.querySelector('#dialogFields [name=url]').value,'first-note.html');
+  document.querySelector('#dialogFields [name=url]').value='revised-note.html';
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  assert.equal(editor.querySelectorAll('a').length,1,'editing a link does not nest another link');
+  assert.equal(link.getAttribute('href'),'revised-note.html');
+  assert.equal(shortcut('z'),true,'undo is left to the browser editing history');
+  assert.equal(shortcut('Z',{shiftKey:true}),true,'redo is left to the browser editing history');
+
+  const titleRect=title.getBoundingClientRect,toolbar=workspace.querySelector('.editor-toolbar');
+  title.getBoundingClientRect=()=>({bottom:0});toolbar.getBoundingClientRect=()=>({bottom:61});
+  window.dispatchEvent(new window.Event('scroll'));
+  await new Promise(resolve=>requestAnimationFrame(resolve));
+  assert.equal(document.getElementById('collapsedNote').hidden,true,'a merely local draft does not enter the header');
+
+  assert.equal(document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true})),false,'Command-S is captured by the editor');
+  await until(()=>document.getElementById('remoteStamp').textContent.startsWith('Draft saved to GitHub:'));
+  window.dispatchEvent(new window.Event('scroll'));
+  await new Promise(resolve=>requestAnimationFrame(resolve));
+  assert.equal(document.getElementById('collapsedNote').hidden,false);
+  assert.equal(document.getElementById('collapsedTitle').textContent,'Original title');
+  assert.equal(document.getElementById('collapsedSubtitle').textContent,'A compact subtitle');
+  const original=files.get('drafts/original-title.json').text;
+  const originalId=JSON.parse(original).id;
+
+  document.getElementById('menuButton').click();
+  document.querySelector('[data-command=drafts]').click();
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  const originalRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-title')?.textContent==='Original title');
+  assert.ok(originalRow);originalRow.querySelector('.save-as').click();
+  const newTitle=document.querySelector('#dialogFields [name=title]');newTitle.value='Independent copy';
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!document.getElementById('workspace').hidden && title.value==='Independent copy');
+  assert.equal(files.get('drafts/original-title.json').text,original,'Save as leaves the source draft byte-for-byte intact');
+  const copy=JSON.parse(files.get('drafts/independent-copy.json').text);
+  assert.notEqual(copy.id,originalId,'the copy has an independent note identity');
+  assert.equal(copy.title,'Independent copy');
+  assert.equal(copy.publicationDate,'');
+  title.getBoundingClientRect=titleRect;
   dom.window.close();
 });
