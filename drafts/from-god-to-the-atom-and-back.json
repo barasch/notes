@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "id": "cc998eef-b4c8-484e-8aba-727243e9dbee",
+  "slug": "from-god-to-the-atom-and-back",
+  "title": "From God to the Atom and Back",
+  "subtitle": "A travelogue from the frontier of fundamental physics: \"Looks like Ancient Greece\"",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "h2",
+      "html": "Origins"
+    },
+    {
+      "type": "h3",
+      "html": "An ancient opposition"
+    },
+    {
+      "type": "p",
+      "html": "When I was a little boy, my father (a physician) explained that reality is basically made up of little bits of stuff pushing each other around. Protons, neutrons, and electrons combine to form atoms; there are photons, some other weird particles, and the fundamental forces. At the subatomic level, the strong and weak forces. Electromagnetism holds electrons in clouds around nuclei, binds atoms into crystals and molecules, small molecules into large ones, etc. Gravity keeps us on the ground and the Earth and Moon in their orbits. Like most kids, my exposure to this fundamental ontology was lightweight at least until high school. I think we talked about atoms and molecules in elementary school science class; there was a book about black holes for young readers; I loved the Earth and Space museum. Through my dad and the wider culture, I had been introduced to the long tradition of materialist reductionism, often identified with Democritus, who gave us the word atom."
+    },
+    {
+      "type": "p",
+      "html": "I knew the name Plato, too, but he was down the hall, probably in Social Studies. I had no occasion to examine Plato&#39;s alternative to the Atomist school until years later. Platos&#39; physics is famous for his ideal forms In his Timaeus, "
+    },
+    {
+      "type": "p",
+      "html": "In recent years, as I have nourished an interest in contemporary physics"
+    },
+    {
+      "type": "p",
+      "html": "Scientists in fundamental physics these days are circling an old conflict about the nature of reality. begins with Ancient Greek physics   This article reviews a recent publication by a team of eleven co-authors at Pragma Research, a private firm in Washington State. The project materials, including a technical paper and a book-length discussion, introduce a framework for a Theory of Everything—that is, a theory of fundamental physics that may be capable of “unifying” physics—called Observer Patch Holography, also the name of the project’s GitHub repository."
+    },
+    {
+      "type": "p",
+      "html": "Let&#39;s try another paragraph and another sidenote.<span class=\"editor-reference\" data-note-id=\"90f12b4c-0e65-471c-a96a-4b41a4658126\" contenteditable=\"false\">·</span><span class=\"editor-note-tail\" data-note-tail=\"true\" contenteditable=\"true\">​</span>"
+    },
+    {
+      "type": "p",
+      "html": "<span class=\"editor-note-tail\" data-note-tail=\"true\" contenteditable=\"true\">​</span>"
+    }
+  ],
+  "notes": {
+    "90f12b4c-0e65-471c-a96a-4b41a4658126": {
+      "type": "sidenote",
+      "html": "Sidenote number two!"
+    }
+  },
+  "objects": {},
+  "updatedAt": 1789999023967,
+  "remoteSavedAt": "2026-09-21T13:57:04.876Z"
+}
