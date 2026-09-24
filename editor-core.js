@@ -21,6 +21,15 @@ export function safeURL(value) {
   return url.startsWith('/') ? '' : url;
 }
 
+export function safeImageURL(value) {
+  const source=String(value||'').trim();
+  if(!source || /[\u0000-\u001f\u007f]/.test(source)) return '';
+  try {
+    const url=new URL(source);
+    return url.protocol==='https:' ? url.href : '';
+  } catch { return ''; }
+}
+
 export function newNote() {
   const now = Date.now();
   return {
@@ -121,7 +130,9 @@ export function editorBlockHTML(block, doc) {
     if (!object) return '';
     const id = escapeHTML(block.id);
     if (object.type === 'image') {
-      return `<figure class="editor-object ${object.fullwidth ? 'fullwidth' : ''}" data-object-id="${id}" contenteditable="false"><img src="${escapeHTML(object.data)}" alt="${escapeHTML(object.alt)}"><figcaption>${escapeHTML(object.caption || '')}</figcaption></figure>`;
+      const placement=object.captionPlacement==='side'?'side':'below';
+      const caption=cleanInline(object.captionHTML ?? escapeHTML(object.caption||''),{},{allowNotes:false});
+      return `<figure class="editor-object image-object caption-${placement} ${object.fullwidth ? 'fullwidth' : ''}" data-object-id="${id}" contenteditable="false"><img src="${escapeHTML(object.data)}" alt="${escapeHTML(object.alt)}"><figcaption data-image-caption="true" contenteditable="true" role="textbox" aria-label="Image caption" spellcheck="true">${caption}</figcaption></figure>`;
     }
     if (object.type === 'table') {
       return `<div class="editor-object editor-table ${object.fullwidth ? 'fullwidth' : ''}" data-object-id="${id}" contenteditable="false">${tableHTML(object)}</div>`;
@@ -154,11 +165,23 @@ export function imagePath(note, id, object) {
   return `img/${note.slug}/${id}.${subtype === 'jpeg' ? 'jpg' : subtype}`;
 }
 
+function imageCaptionHTML(object,{published=false}={}) {
+  return cleanInline(object.captionHTML ?? escapeHTML(object.caption||''),{},{published,allowNotes:false});
+}
+
 export function publishedBlockHTML(block, doc) {
   if (block.type === 'object') {
     const object = doc.objects[block.id];
     if (!object) return '';
-    if (object.type === 'image') return `<figure${object.fullwidth ? ' class="fullwidth"' : ''}><img src="${imagePath(doc,block.id,object)}" alt="${escapeHTML(object.alt)}"/>${object.caption ? `<figcaption>${escapeHTML(object.caption)}</figcaption>` : ''}</figure>`;
+    if (object.type === 'image') {
+      const source=object.external?safeImageURL(object.data):imagePath(doc,block.id,object);
+      if(!source) throw new Error('An external image must use a valid HTTPS address.');
+      const placement=object.captionPlacement==='side'?'side':'below';
+      const classes=[object.fullwidth?'fullwidth':'',`caption-${placement}`].filter(Boolean).join(' ');
+      const caption=imageCaptionHTML(object,{published:true});
+      const hasCaption=caption.replace(/<br\s*\/?\s*>/gi,'').trim();
+      return `<figure class="${classes}"><img src="${escapeHTML(source)}" alt="${escapeHTML(object.alt)}" loading="lazy" decoding="async"/>${hasCaption?`<figcaption>${caption}</figcaption>`:''}</figure>`;
+    }
     if (object.type === 'table') return `<div class="table-wrapper editor-published-table ${object.fullwidth ? 'fullwidth' : ''}">${tableHTML(object)}</div>`;
     return `<blockquote class="pullquote"><p>${escapeHTML(object.text)}</p>${object.source ? `<footer>${escapeHTML(object.source)}</footer>` : ''}</blockquote>`;
   }
@@ -295,11 +318,12 @@ export class GitHub {
       const error=new Error('The GitHub draft changed elsewhere. Your local copy is intact.');
       error.conflict=true; throw error;
     }
-    const savedAt=new Date().toISOString();
-    const source={...note,remoteSha:undefined,remoteSavedAt:savedAt};
+    const savedAt=new Date().toISOString(),savedTitle=note.title.trim();
+    const source={...note,savedTitle,remoteSha:undefined,remoteSavedAt:savedAt};
     const result=await this.writeFile(path,JSON.stringify(source,null,2)+'\n',DRAFT_BRANCH,existing?.sha);
     note.remoteSha=result.content.sha;
     note.remoteSavedAt=savedAt;
+    note.savedTitle=savedTitle;
     return result;
   }
   async deleteDraft(slug,expectedSha=null) {
@@ -326,7 +350,7 @@ export class GitHub {
       {path:'index.html',mode:'100644',type:'blob',content:updateIndex(index.text,note)},
     ];
     for(const [id,object] of Object.entries(note.objects)) {
-      if(object.type!=='image') continue;
+      if(object.type!=='image'||object.external) continue;
       const data=object.data.split(',')[1];
       const blob=await this.request('/git/blobs',{method:'POST',body:{content:data,encoding:'base64'}});
       tree.push({path:imagePath(note,id,object),mode:'100644',type:'blob',sha:blob.sha});
