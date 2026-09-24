@@ -12,11 +12,11 @@
     },
     {
       "type": "p",
-      "html": "But a lightyear is not even a distance in the way we commonly understand that term, as a length of space between two points existing at the same time. It was Einstein, in 1905, who broke open the secret that time and distance are specific to a unique three-dimensional reference frame. Hermann Minkowski, in 1908, followed  the rationale to the conclusion that 3D space, while a useful framework, has no primitive existence. "
+      "html": "But a lightyear is not even a distance in the way we commonly understand that term, as a length of space between two points existing at the same time. It was Einstein, in 1905, who broke open the secret that time and distance are specific to a unique three-dimensional reference frame. Hermann Minkowski followed his rationale to the conclusion that intuitive 3D space has no primitive existence at all. A division of spacetime into space and time arises only relative to a unique timelike observer."
     },
     {
       "type": "p",
-      "html": "A lightyear does not act like a distance; it acts like a latency: the minimum time elapsed at point A before any signal sent at point B can be received."
+      "html": "And at large scales, the intuition really does break down. A lightyear does not act like a distance, but instead like a latency: the minimum time elapsed at point A before any signal sent at point B can be received."
     },
     {
       "type": "p",
@@ -29,6 +29,6 @@
   ],
   "notes": {},
   "objects": {},
-  "updatedAt": 1790263077548,
-  "remoteSavedAt": "2026-09-24T15:17:57.937Z"
+  "updatedAt": 1790264487805,
+  "remoteSavedAt": "2026-09-24T15:41:28.465Z"
 }
