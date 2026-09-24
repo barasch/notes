@@ -1,7 +1,7 @@
 import {
   AUTH_PATH, GitHub, slugify, newNote, validateNote, cleanInline,
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
-  seal, recoveryPut, recoveryAll, recoveryDelete, localISODate,
+  safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate,
 } from './editor-core.js';
 
 const $ = id => document.getElementById(id);
@@ -273,6 +273,7 @@ function openNote(noteId) {
 }
 function loadNote(next,locallySaved=false) {
   note=validateNote(next);
+  if(note.remoteSha&&!note.savedTitle) note.savedTitle=note.title.trim();
   revision=0; localRevision=locallySaved?0:-1;
   $('noteTitle').value=note.title;
   $('noteSubtitle').value=note.subtitle;
@@ -302,6 +303,7 @@ async function showDashboard() {
         const source=await github.file(`drafts/${entry.slug}.json`,'drafts');
         const draft=validateNote(JSON.parse(source.text));
         draft.remoteSha=source.sha;entry.document=draft;entry.remoteSha=source.sha;
+        entry.savedTitle=draft.savedTitle||draft.title;
         entry.title=draft.title||entry.title;
         entry.updatedAt=Date.parse(draft.remoteSavedAt||'')||0;
         entry.createdAt=Number(draft.createdAt)||0;
@@ -315,6 +317,7 @@ async function showDashboard() {
     for(const record of local) {
       const remote=record.document.slug&&entries.find(entry=>entry.slug===record.document.slug);
       if(remote) {
+        if(!record.document.savedTitle&&remote.savedTitle) record.document.savedTitle=remote.savedTitle;
         remote.document=record.document;remote.title=record.document.title||remote.title;
         remote.updatedAt=record.savedAt;remote.createdAt=Number(record.document.createdAt)||remote.createdAt||record.savedAt;
         remote.kind='recovered';
@@ -329,9 +332,10 @@ async function showDashboard() {
       button.addEventListener('click',()=>openDraft(entry));
       const meta=document.createElement('div');meta.className='draft-meta';
       const side=document.createElement('span');side.className='draft-kind';side.textContent={local:'Local recovery',recovered:'Local recovery over GitHub draft',github:'GitHub draft'}[entry.kind];
+      const filename=document.createElement('span');filename.className='draft-filename';filename.textContent=`Filename ${entry.slug||'not yet assigned'}`;
       const created=document.createElement('span');created.className='draft-created';created.textContent=`Created ${formatDraftTime(entry.createdAt)}`;
       const saved=document.createElement('span');saved.className='draft-saved';saved.textContent=`Last saved ${formatDraftTime(entry.updatedAt)}`;
-      meta.append(side,created,saved);
+      meta.append(side,filename,created,saved);
       const actions=document.createElement('div');actions.className='draft-actions';
       const saveAs=document.createElement('button');saveAs.type='button';saveAs.className='save-as';saveAs.textContent='Save as';
       saveAs.addEventListener('click',()=>openDialog('save-as',null,{entry}));
@@ -348,27 +352,26 @@ async function entryDocument(entry) {
   const loaded=validateNote(JSON.parse(file.text));loaded.remoteSha=file.sha;
   return loaded;
 }
-async function titleIsTaken(title,{excludeId=null,excludeSlug=null}={}) {
-  const target=String(title).trim();
-  if(!target) return false;
-  const local=await recoveryAll(key);
-  if(local.some(record=>record.document.id!==excludeId && record.document.slug!==excludeSlug && record.document.title.trim()===target)) return true;
-  const files=await github.drafts();
-  for(const file of files) {
-    const slug=file.name.slice(0,-5);
-    if(slug===excludeSlug) continue;
-    try {
-      const source=await github.file(`drafts/${slug}.json`,'drafts');
-      const draft=validateNote(JSON.parse(source.text));
-      if(draft.id!==excludeId && draft.title.trim()===target) return true;
-    } catch { /* A damaged draft cannot establish a conflicting title. */ }
+async function availableSlug(value) {
+  const base=slugify(value);
+  if(!base) throw new Error('Enter a filename containing at least one letter or number.');
+  const [local,files]=await Promise.all([recoveryAll(key),github.drafts()]);
+  const occupied=new Set([
+    ...local.map(record=>record.document.slug).filter(Boolean),
+    ...files.map(file=>file.name.slice(0,-5)),
+  ]);
+  for(let number=1;number<10_000;number++) {
+    const candidate=number===1?base:`${base}-${number}`;
+    if(occupied.has(candidate)) continue;
+    if(!await github.file(`${candidate}.html`,'main')) return candidate;
   }
-  return false;
+  throw new Error('Could not find an available filename.');
 }
-async function assertUniqueTitle(document) {
-  if(await titleIsTaken(document.title,{excludeId:document.id,excludeSlug:document.slug})) {
-    throw new Error('Another draft already uses exactly this title. Choose a different title.');
-  }
+function independentCopy(source,slug) {
+  const copy=structuredClone(source),now=Date.now();
+  copy.id=crypto.randomUUID();copy.slug=slug;copy.remoteSha=null;copy.remoteSavedAt='';
+  copy.savedTitle='';copy.publicationDate='';copy.createdAt=now;copy.updatedAt=now;
+  return copy;
 }
 async function ensureCreatedAt(document) {
   if(Number(document.createdAt)) return;
@@ -389,7 +392,16 @@ async function resumeRequested() {
   const records=await recoveryAll(key);
   const localId=params.get('local'), slug=params.get('draft');
   const saved=records.find(record=>record.document.id===localId || (slug&&record.document.slug===slug));
-  if(saved) {loadNote(saved.document,true);return;}
+  if(saved) {
+    if(saved.document.slug&&saved.document.remoteSha&&!saved.document.savedTitle) {
+      const remote=await github.file(`drafts/${saved.document.slug}.json`,'drafts').catch(()=>null);
+      if(remote) {
+        try {saved.document.savedTitle=validateNote(JSON.parse(remote.text)).title.trim();}
+        catch { /* Retain the local draft even if the remote file is damaged. */ }
+      }
+    }
+    loadNote(saved.document,true);return;
+  }
   if(slug && /^[a-z0-9-]+$/.test(slug)) {
     const file=await github.file(`drafts/${slug}.json`,'drafts');
     if(file) {const loaded=validateNote(JSON.parse(file.text));loaded.remoteSha=file.sha;loadNote(loaded);return;}
@@ -401,16 +413,30 @@ function retainRange() {
   const selection=window.getSelection();
   if(!selection.rangeCount) return;
   const anchor=selection.anchorNode;
+  const caption=anchor?.nodeType===1?anchor.closest?.('[data-image-caption]'):anchor?.parentElement?.closest('[data-image-caption]');
   const noteField=anchor?.nodeType===1?anchor.closest?.('.note-text'):anchor?.parentElement?.closest('.note-text');
-  if(body.contains(anchor) || noteField) {
+  if(body.contains(anchor) || noteField || caption) {
     selectedRange=selection.getRangeAt(0).cloneRange();
-    selectedEditable=noteField||body;
+    selectedEditable=caption||noteField||body;
   }
 }
 function restoreRange() {
   if(!selectedRange || !selectedEditable.contains(selectedRange.startContainer)) {focusBodyEnd();return;}
   selectedEditable.focus();
   const selection=window.getSelection(); selection.removeAllRanges(); selection.addRange(selectedRange);
+}
+function syncSelectedEditable() {
+  const caption=selectedEditable.closest?.('[data-image-caption]');
+  if(caption) {
+    const id=caption.closest('[data-object-id]')?.dataset.objectId;
+    if(id&&note.objects[id]?.type==='image') note.objects[id].captionHTML=cleanInline(caption.innerHTML,{}, {allowNotes:false});
+    return;
+  }
+  const id=selectedEditable.closest?.('[data-note-id]')?.dataset.noteId;
+  if(id) note.notes[id].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
+}
+function escapeLegacyCaption(value='') {
+  const holder=document.createElement('div');holder.textContent=String(value||'');return holder.innerHTML;
 }
 function insertNote(type) {
   if(selectedEditable!==body) {notice('Place the cursor in the main text to attach a note.',true);return;}
@@ -455,7 +481,8 @@ function plainTextPaste(event) {
   if(end) {
     range.insertNode(fragment);range.setStartAfter(end);range.collapse(true);
     selection.removeAllRanges();selection.addRange(range);
-    event.currentTarget.dispatchEvent(new window.Event('input',{bubbles:true}));
+    const editable=event.target.closest?.('[contenteditable="true"]')||event.currentTarget;
+    editable.dispatchEvent(new window.Event('input',{bubbles:true}));
   }
 }
 
@@ -472,6 +499,16 @@ function checkbox(name,label,value=false) {
   const input=document.createElement('input');input.type='checkbox';input.name=name;input.checked=value;
   element.append(input,label);return element;
 }
+function radioGroup(name,label,options,value) {
+  const fieldset=document.createElement('fieldset'),legend=document.createElement('legend');legend.textContent=label;
+  fieldset.className='choice-group';fieldset.append(legend);
+  for(const [optionValue,optionLabel] of options) {
+    const option=document.createElement('label'),input=document.createElement('input');
+    input.type='radio';input.name=name;input.value=optionValue;input.checked=optionValue===value;
+    option.append(input,optionLabel);fieldset.append(option);
+  }
+  return fieldset;
+}
 function openDialog(type,id=null,context={}) {
   retainRange();
   const object=type==='note'?note.notes[id]:id?note.objects[id]:null;
@@ -482,7 +519,7 @@ function openDialog(type,id=null,context={}) {
   $('deleteObject').hidden=!id||type==='note';
   const submit=$('contentForm').querySelector('[type=submit]');submit.disabled=false;submit.textContent=id?'Save':'Insert';submit.classList.toggle('danger-button',type==='delete-draft');
   if(type==='address') {
-    fields.append(fieldHTML('slug','Public filename (without .html)',slugify(note.title)));
+    fields.append(fieldHTML('slug','Filename / future public address (without .html)',slugify(note.title)));
     $('contentForm').querySelector('[type=submit]').textContent='Save draft';
   } else if(type==='link') {
     const start=selectedRange?.startContainer;
@@ -495,8 +532,15 @@ function openDialog(type,id=null,context={}) {
     );
     if(dialogContext.linkElement) $('contentForm').querySelector('[type=submit]').textContent='Save';
   } else if(type==='image') {
-    if(!id) fields.append(fieldHTML('file','Image file','','file'));
-    fields.append(fieldHTML('alt','Description (alternative text)',object?.alt||''),fieldHTML('caption','Caption',object?.caption||''),checkbox('fullwidth','Full width',object?.fullwidth));
+    if(!id) fields.append(
+      fieldHTML('file','Upload image','','file'),
+      fieldHTML('externalUrl','Or external HTTPS image address','','url'),
+    );
+    fields.append(
+      fieldHTML('alt','Description (alternative text)',object?.alt||''),
+      checkbox('fullwidth','Full width',object?.fullwidth),
+      radioGroup('captionPlacement','Caption placement',[['below','Below image'],['side','To the side']],object?.captionPlacement==='side'?'side':'below'),
+    );
   } else if(type==='quote') {
     fields.append(fieldHTML('text','Quotation',object?.text||'','textarea'),fieldHTML('source','Source (optional)',object?.source||''));
   } else if(type==='table') {
@@ -509,7 +553,8 @@ function openDialog(type,id=null,context={}) {
     fields.append(fieldHTML('token','New fine-grained GitHub token','','password'));
     $('contentForm').querySelector('[type=submit]').textContent='Replace token';
   } else if(type==='save-as') {
-    fields.append(fieldHTML('title','New title',context.entry?.title||''));
+    const source=context.entry?.slug||slugify(context.entry?.title||'draft');
+    fields.append(fieldHTML('slug','Filename / future public address (without .html)',`${source}-copy`));
     $('contentForm').querySelector('[type=submit]').textContent='Create copy';
   } else if(type==='delete-draft') {
     const warning=document.createElement('p');warning.textContent=`Permanently delete “${context.entry?.title||'Untitled note'}”? This cannot be undone. Any published page is unaffected.`;
@@ -533,34 +578,16 @@ async function applyDialog(event) {
     }
     if(type==='save-as') {
       const submit=form.querySelector('[type=submit]');submit.disabled=true;
-      const title=String(data.get('title')).trim();
-      const slug=slugify(title);
-      if(!title || !slug) throw new Error('Enter a title that can form a note address.');
-      const local=(await recoveryAll(key)).some(record=>record.document.slug===slug);
-      const [existing,publicPage]=await Promise.all([
-        github.file(`drafts/${slug}.json`,'drafts'),github.file(`${slug}.html`,'main'),
-      ]);
-      if(local || existing || publicPage) throw new Error('A draft or published note already uses that title-derived address.');
-      if(await titleIsTaken(title)) throw new Error('Another draft already uses exactly this title. Choose a different title.');
       const source=await entryDocument(dialogContext.entry);
-      const copy=structuredClone(source);
-      copy.id=crypto.randomUUID();copy.title=title;copy.slug=slug;
-      copy.remoteSha=null;copy.remoteSavedAt='';copy.publicationDate='';copy.createdAt=Date.now();copy.updatedAt=copy.createdAt;
+      const requested=String(data.get('slug')).trim(),slug=await availableSlug(requested);
+      const copy=independentCopy(source,slug);
       await github.saveDraft(copy);
       await recoveryPut(copy.id,copy,key);
-      $('contentDialog').close();loadNote(copy,true);notice('New draft created. The original draft is unchanged.');
+      $('contentDialog').close();loadNote(copy,true);notice(`Saved copy as ${slug}. The original draft is unchanged.`);
       return;
     }
     if(type==='address') {
-      const slug=slugify(String(data.get('slug')));
-      if(!slug || !/^[a-z0-9-]+$/.test(slug)) throw new Error('Enter a valid note address.');
-      const [existing,publicPage]=await Promise.all([
-        github.file(`drafts/${slug}.json`,'drafts'),github.file(`${slug}.html`,'main'),
-      ]);
-      if(existing && !note.remoteSha) throw new Error('That note address is already in use.');
-      if(publicPage && !publicPage.text.includes(`<meta name="notes-editor-id" content="${note.id}"/>`)) {
-        throw new Error('That public address already belongs to another note. Choose a different filename.');
-      }
+      const slug=await availableSlug(String(data.get('slug')));
       note.slug=slug;markChanged();
       $('contentDialog').close();
       if(dialogContext.intent==='publish') await publish();
@@ -573,10 +600,7 @@ async function applyDialog(event) {
       const existing=dialogContext.linkElement;
       if(existing?.isConnected) {
         existing.setAttribute('href',url);existing.textContent=String(data.get('text'))||url;
-        if(selectedEditable!==body) {
-          const noteId=selectedEditable.closest('[data-note-id]')?.dataset.noteId;
-          if(noteId) note.notes[noteId].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
-        }
+        if(selectedEditable!==body) syncSelectedEditable();
         markChanged();
         $('contentDialog').close();
         return;
@@ -592,10 +616,7 @@ async function applyDialog(event) {
       const anchor=document.createElement('a');anchor.href=url;anchor.textContent=text;
       range.deleteContents();range.insertNode(anchor);range.setStartAfter(anchor);range.collapse(true);
       selection.removeAllRanges();selection.addRange(range);
-      if(selectedEditable!==body) {
-        const id=selectedEditable.closest('[data-note-id]')?.dataset.noteId;
-        if(id) note.notes[id].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
-      }
+      if(selectedEditable!==body) syncSelectedEditable();
       markChanged();
     }
     if(type==='note') {
@@ -604,17 +625,25 @@ async function applyDialog(event) {
       markChanged();layoutNotes();
     }
     if(type==='image') {
-      let imageData=id?note.objects[id].data:'';
+      let imageData=id?note.objects[id].data:'',external=id?Boolean(note.objects[id].external):false;
       if(!id) {
-        const file=data.get('file');
-        if(!(file instanceof File)||!file.size) throw new Error('Choose an image.');
-        if(!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) throw new Error('Use PNG, JPEG, GIF, or WebP.');
-        if(file.size>10_000_000) throw new Error('Images over 10 MB are not supported.');
-        imageData=await new Promise((resolve,reject)=>{
-          const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);
-        });
+        const file=data.get('file'),externalUrl=String(data.get('externalUrl')).trim();
+        if(file instanceof File&&file.size&&externalUrl) throw new Error('Choose either an uploaded file or an external image address, not both.');
+        if(externalUrl) {
+          imageData=safeImageURL(externalUrl);
+          if(!imageData) throw new Error('External images must use a valid HTTPS address.');
+          external=true;
+        } else {
+          if(!(file instanceof File)||!file.size) throw new Error('Choose an uploaded image or enter an external HTTPS address.');
+          if(!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) throw new Error('Use PNG, JPEG, GIF, or WebP.');
+          if(file.size>10_000_000) throw new Error('Images over 10 MB are not supported.');
+          imageData=await new Promise((resolve,reject)=>{
+            const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(file);
+          });
+        }
       }
-      const object={type:'image',data:imageData,alt:String(data.get('alt')).trim(),caption:String(data.get('caption')).trim(),fullwidth:data.has('fullwidth')};
+      const prior=id?note.objects[id]:null;
+      const object={type:'image',data:imageData,external,alt:String(data.get('alt')).trim(),captionHTML:prior?.captionHTML??escapeLegacyCaption(prior?.caption),fullwidth:data.has('fullwidth'),captionPlacement:data.get('captionPlacement')==='side'?'side':'below'};
       if(id) updateObject(id,object); else insertObject(object);
     }
     if(type==='quote' || type==='table') {
@@ -674,13 +703,26 @@ async function remoteAction(task) {
 async function writeDraft() {
   await remoteAction(async()=>{
     localSnapshot();
-    await assertUniqueTitle(note);
+    if(await forkChangedTitle()) return;
     await ensureCreatedAt(note);
     await github.saveDraft(note);
     githubStamp();history.replaceState(null,'',`editor.html?draft=${encodeURIComponent(note.slug)}`);
     revision++;await saveLocal();
     notice('Draft saved to GitHub.');
   });
+}
+async function forkChangedTitle({publishing=false}={}) {
+  const saved=String(note.savedTitle||'').trim(),current=note.title.trim();
+  if(!note.remoteSha||!saved||saved===current) return false;
+  const sourceId=note.id,slug=await availableSlug(current);
+  const copy=independentCopy(note,slug);
+  if(publishing) copy.publicationDate=localISODate();
+  await github.saveDraft(copy);
+  await recoveryPut(copy.id,copy,key);
+  await recoveryDelete(sourceId);
+  loadNote(copy,true);
+  notice(`Title changed. Saved a new draft as ${slug}; the previous draft is unchanged.`);
+  return true;
 }
 async function chooseAddress(intent='save') {
   localSnapshot();
@@ -693,15 +735,7 @@ async function chooseAddress(intent='save') {
     return false;
   }
   try {
-    const [draft,publicPage]=await Promise.all([
-      github.file(`drafts/${suggested}.json`,'drafts'),github.file(`${suggested}.html`,'main'),
-    ]);
-    if(draft || publicPage) {
-      openDialog('address');dialogContext.intent=intent;
-      notice('That address is already in use. Choose another filename.',true);
-      return false;
-    }
-    note.slug=suggested;markChanged();
+    note.slug=await availableSlug(suggested);markChanged();
     return true;
   } catch(error) {notice(`Could not check the address: ${error.message}`,true);return false;}
 }
@@ -710,10 +744,10 @@ async function publish() {
   if(!await chooseAddress('publish')) return;
   await remoteAction(async()=>{
     localSnapshot();
-    await assertUniqueTitle(note);
+    const forked=await forkChangedTitle({publishing:true});
     await ensureCreatedAt(note);
     if(!note.publicationDate) note.publicationDate=localISODate();
-    await github.saveDraft(note);
+    if(!forked) await github.saveDraft(note);
     await github.publish(note);
     githubStamp();revision++;await saveLocal();
     notice(`Published: ${location.origin}${location.pathname.replace(/editor\.html$/,'')}${note.slug}.html`);
@@ -780,7 +814,14 @@ $('noteTitle').addEventListener('keydown',event=>{
 $('noteSubtitle').addEventListener('keydown',event=>{
   if(event.key==='Enter' && !event.isComposing) {event.preventDefault();focusHeading();}
 });
-body.addEventListener('input',()=>{markChanged();layoutNotes();});
+body.addEventListener('input',event=>{
+  const caption=event.target.closest?.('[data-image-caption]');
+  if(caption) {
+    const id=caption.closest('[data-object-id]')?.dataset.objectId;
+    if(id&&note.objects[id]?.type==='image') note.objects[id].captionHTML=cleanInline(caption.innerHTML,{}, {allowNotes:false});
+  }
+  markChanged();layoutNotes();
+});
 body.addEventListener('paste',plainTextPaste);
 body.addEventListener('keydown',event=>{
   if(event.altKey || event.ctrlKey || event.metaKey || event.isComposing) return;
@@ -800,6 +841,7 @@ document.fonts?.ready.then(layoutNotes);
 body.addEventListener('click',event=>{
   const marker=event.target.closest('[data-note-id]');
   if(marker) {event.preventDefault();openNote(marker.dataset.noteId);return;}
+  if(event.target.closest('[data-image-caption]')) return;
   const object=event.target.closest('[data-object-id]');
   if(object) {event.preventDefault();openDialog(note.objects[object.dataset.objectId]?.type,object.dataset.objectId);}
 });
@@ -822,8 +864,7 @@ function applyInlineFormat(command) {
     notice(`This browser could not apply ${command}.`,true);return;
   }
   if(selectedEditable!==body) {
-    const id=selectedEditable.closest('[data-note-id]')?.dataset.noteId;
-    if(id) note.notes[id].html=cleanInline(selectedEditable.innerHTML,note.notes,{allowNotes:false});
+    syncSelectedEditable();
   }
   selectedEditable.dispatchEvent(new window.Event('input',{bubbles:true}));
   retainRange();
