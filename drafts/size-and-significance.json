@@ -2,7 +2,7 @@
   "version": 1,
   "id": "135f1e6b-583d-43b0-a25c-3fc872104211",
   "slug": "size-and-significance",
-  "title": "Size and Significance",
+  "title": "Scale and Significance",
   "subtitle": "Small causes are required by large effects",
   "publicationDate": "",
   "blocks": [
@@ -16,7 +16,7 @@
     },
     {
       "type": "p",
-      "html": "And at large scales, the intuition really does break down. A lightyear does not act like a distance, but instead like a latency: the minimum time elapsed at point A before any signal sent at point B can be received."
+      "html": "And at large scales, the intuition really does break down. A lightyear does not act like a distance, but rather like a latency: the minimum time elapsed at point A before any signal sent from point B can be received."
     },
     {
       "type": "p",
@@ -29,6 +29,7 @@
   ],
   "notes": {},
   "objects": {},
-  "updatedAt": 1790264487805,
-  "remoteSavedAt": "2026-09-24T15:41:28.465Z"
+  "updatedAt": 1790267821725,
+  "remoteSavedAt": "2026-09-24T16:37:02.891Z",
+  "createdAt": 1790263078000
 }
