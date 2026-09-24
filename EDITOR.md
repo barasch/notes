@@ -64,8 +64,11 @@ title cannot form an address, the editor asks for another. After saving, the
 filename stays stable even if the title changes. **Save as** on the Drafts page
 creates and opens an independent copy under a new title-derived filename and
 note identity; it does not alter the original draft or its published page. The
-time above the
-title shows the last explicit GitHub draft save. Autosaves never touch GitHub or
+Drafts page requires distinct titles for explicitly saved drafts, shows creation
+and last-saved times, and can permanently delete a draft after confirmation.
+Deletion removes both the GitHub source draft and its local recovery copy but
+does not remove an already published page. The time above the title shows the
+last explicit GitHub draft save. Autosaves never touch GitHub or
 advance that time. **Publish** first saves the editable source draft, then makes
 one fast-forward commit to `main` containing the article, image files, and
 index entry. The GitHub Pages site only serves the `main` branch; drafts in the

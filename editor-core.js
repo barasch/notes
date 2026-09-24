@@ -22,10 +22,11 @@ export function safeURL(value) {
 }
 
 export function newNote() {
+  const now = Date.now();
   return {
     version: 1, id: crypto.randomUUID(), slug: '', title: '', subtitle: '',
     publicationDate: '', remoteSha: null, blocks: [{type:'h2',html:''}],
-    notes: {}, objects: {}, updatedAt: Date.now(),
+    notes: {}, objects: {}, createdAt: now, updatedAt: now,
   };
 }
 
@@ -280,6 +281,12 @@ export class GitHub {
     const files=await this.request(`/contents/drafts?ref=${DRAFT_BRANCH}`,{allow404:true});
     return Array.isArray(files) ? files.filter(file=>file.name.endsWith('.json')) : [];
   }
+  async fileTimes(path,branch=DRAFT_BRANCH) {
+    const commits=await this.request(`/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(path)}&per_page=100`,{allow404:true});
+    if(!Array.isArray(commits) || !commits.length) return {createdAt:0,savedAt:0};
+    const timestamp=commit=>Date.parse(commit?.commit?.author?.date || commit?.commit?.committer?.date || '')||0;
+    return {createdAt:timestamp(commits.at(-1)),savedAt:timestamp(commits[0])};
+  }
   async saveDraft(note) {
     await this.ensureDraftBranch();
     const path=`drafts/${note.slug}.json`;
@@ -294,6 +301,17 @@ export class GitHub {
     note.remoteSha=result.content.sha;
     note.remoteSavedAt=savedAt;
     return result;
+  }
+  async deleteDraft(slug,expectedSha=null) {
+    const path=`drafts/${slug}.json`;
+    const current=await this.file(path,DRAFT_BRANCH);
+    if(!current) return false;
+    if(expectedSha && current.sha!==expectedSha) {
+      const error=new Error('The GitHub draft changed elsewhere. Reload the Drafts page before deleting it.');
+      error.conflict=true;throw error;
+    }
+    await this.request(`/contents/${path}`,{method:'DELETE',body:{message:`Delete ${path}`,sha:current.sha,branch:DRAFT_BRANCH}});
+    return true;
   }
   async publish(note) {
     const current=await this.file(`${note.slug}.html`,'main');
@@ -353,4 +371,14 @@ export async function recoveryAll(key) {
     catch { /* A replaced credential may leave old local copies unreadable. */ }
   }
   return drafts;
+}
+export async function recoveryDelete(id) {
+  const db=await openRecoveryDB();
+  return new Promise((resolve,reject)=>{
+    const tx=db.transaction('drafts','readwrite');
+    tx.objectStore('drafts').delete(id);
+    tx.oncomplete=()=>{db.close();resolve();};
+    tx.onerror=()=>{db.close();reject(tx.error);};
+    tx.onabort=()=>{db.close();reject(tx.error);};
+  });
 }

@@ -27,6 +27,16 @@ globalThis.fetch=async(url,options={})=>{
     files.set(path.slice('/contents/'.length),{text:decoded,sha});
     return result({content:{sha},commit:{author:{date:'2026-09-13T12:00:00Z'}}},201);
   }
+  if(method==='DELETE' && path.startsWith('/contents/')) {
+    const data=JSON.parse(options.body);const name=path.slice('/contents/'.length);const file=files.get(name);
+    if(!file) return result({message:'Not Found'},404);
+    if(data.sha!==file.sha) return result({message:'Conflict'},409);
+    files.delete(name);githubWrites++;return result({commit:{sha:`delete-${githubWrites}`}},200);
+  }
+  if(method==='GET' && path==='/commits') return result([
+    {commit:{author:{date:'2026-09-13T12:00:00Z'}}},
+    {commit:{author:{date:'2026-09-12T09:30:00Z'}}},
+  ]);
   if(method==='GET' && path==='/git/ref/heads/drafts') return branchExists?result({object:{sha:'draft-head'}}):result({message:'Not Found'},404);
   if(method==='GET' && path==='/git/ref/heads/main') return result({object:{sha:'main-head'}});
   if(method==='POST' && path==='/git/refs') {branchExists=true;return result({ref:'refs/heads/drafts'},201);}
@@ -249,6 +259,7 @@ test('floating controls, compact saved title, common shortcuts, and Save as pres
   assert.ok(controls);
   assert.equal(workspace.querySelector('.editor-toolbar .floating-tools'),null,'controls are independent of the sticky header');
   const title=document.getElementById('noteTitle'),subtitle=document.getElementById('noteSubtitle');
+  assert.equal(title.tagName,'TEXTAREA');assert.equal(subtitle.tagName,'TEXTAREA','compose headings use wrapping fields');
   title.value='Original title';title.dispatchEvent(new window.Event('input',{bubbles:true}));
   subtitle.value='A compact subtitle';subtitle.dispatchEvent(new window.Event('input',{bubbles:true}));
   const editor=document.getElementById('editorBody');editor.innerHTML='<p>Formatted text</p>';
@@ -304,6 +315,26 @@ test('floating controls, compact saved title, common shortcuts, and Save as pres
   assert.notEqual(copy.id,originalId,'the copy has an independent note identity');
   assert.equal(copy.title,'Independent copy');
   assert.equal(copy.publicationDate,'');
+  assert.ok(Number(copy.createdAt),'the copy records its creation time');
+
+  title.value='Original title';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
+  await until(()=>document.getElementById('toast').textContent.includes('exactly this title'));
+  assert.equal(JSON.parse(files.get('drafts/independent-copy.json').text).title,'Independent copy','a duplicate title is not saved to GitHub');
+  title.value='Independent copy';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  document.getElementById('menuButton').click();document.querySelector('[data-command=drafts]').click();
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  const copyRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-title')?.textContent==='Independent copy');
+  assert.ok(copyRow.querySelector('.draft-created').textContent.startsWith('Created '));
+  assert.ok(copyRow.querySelector('.draft-saved').textContent.startsWith('Last saved '));
+  copyRow.querySelector('.delete-draft').click();
+  assert.equal(document.getElementById('contentDialog').open,true);
+  assert.match(document.getElementById('dialogFields').textContent,/cannot be undone/i);
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!files.has('drafts/independent-copy.json'));
+  await until(()=>![...document.querySelectorAll('.draft-title')].some(button=>button.textContent==='Independent copy'));
+  const {key:deletionKey}=await unlockCredential(encrypted,passphrase);
+  assert.equal((await recoveryAll(deletionKey)).some(record=>record.document.id===copy.id),false,'permanent delete also removes local recovery');
   title.getBoundingClientRect=titleRect;
   dom.window.close();
 });
