@@ -24,6 +24,14 @@
     },
     {
       "type": "p",
+      "html": ""
+    },
+    {
+      "type": "object",
+      "id": "2daed0bd-c991-4500-bd1c-0bb8264680e6"
+    },
+    {
+      "type": "p",
       "html": "For life on Earth, different measurements of time and space usually correspond closely enough to be workable because, in the big picture, we are all very nearby to one another and we are all moving in almost the same direction at almost the same speed all the time. But at large scales, the intuitive picture breaks down dramatically. A lightyear does not act like a distance, but rather like a latency, the minimum time elapsed at point A before any signal sent from point B can be received."
     },
     {
@@ -58,10 +66,15 @@
       "captionHTML": "<em>The Milky Way</em>. Image credit: <a href=\"https://upload.wikimedia.org/wikipedia/commons/1/11/Galactic_Cntr_full_cropped.jpg\">2MASS/G. Kopan, R. Hurt</a>",
       "fullwidth": true,
       "captionPlacement": "below"
+    },
+    "2daed0bd-c991-4500-bd1c-0bb8264680e6": {
+      "type": "quote",
+      "text": "\"Within the hour, space by itself and time by itself will sink into shadow\"",
+      "source": "Hermann Minkowski, 1908"
     }
   },
-  "updatedAt": 1790292609454,
-  "remoteSavedAt": "2026-09-24T23:30:10.074Z",
+  "updatedAt": 1790292785847,
+  "remoteSavedAt": "2026-09-24T23:33:06.452Z",
   "createdAt": 1790289877033,
   "savedTitle": "Scale and Significance"
 }
