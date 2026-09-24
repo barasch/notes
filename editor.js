@@ -1,7 +1,7 @@
 import {
   AUTH_PATH, GitHub, slugify, newNote, validateNote, cleanInline,
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
-  seal, recoveryPut, recoveryAll, localISODate,
+  seal, recoveryPut, recoveryAll, recoveryDelete, localISODate,
 } from './editor-core.js';
 
 const $ = id => document.getElementById(id);
@@ -11,6 +11,15 @@ let credential = null, credentialSha = null, key = null, token = null;
 let github = new GitHub(), note = null, revision = 0, localRevision = -1;
 let saveTimer = null, continuousTimer = null, overdueTimer = null, localWrite = null;
 let selectedRange = null, selectedEditable = body, dialogContext = null, busy = false;
+
+function resizeHeadingField(field) {
+  field.style.height='auto';
+  field.style.height=`${Math.max(field.scrollHeight,1)}px`;
+}
+function formatDraftTime(value) {
+  const time=typeof value==='number'?value:Date.parse(value||'');
+  return time ? new Date(time).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'}) : 'Unavailable';
+}
 
 function view(id) {
   for(const name of views) $(name).hidden = name !== id;
@@ -273,7 +282,7 @@ function loadNote(next,locallySaved=false) {
   document.title=`${note.title || 'New note'} — Write`;
   const query=note.slug?`?draft=${encodeURIComponent(note.slug)}`:`?local=${encodeURIComponent(note.id)}`;
   history.replaceState(null,'',`editor.html${query}`);
-  requestAnimationFrame(layoutNotes);
+  requestAnimationFrame(()=>{resizeHeadingField($('noteTitle'));resizeHeadingField($('noteSubtitle'));layoutNotes();});
   if(!locallySaved) saveLocal();
 }
 async function showDashboard() {
@@ -283,22 +292,34 @@ async function showDashboard() {
   const list=$('draftList'); list.textContent='Loading drafts…';
   try {
     const [files,local]=await Promise.all([github.drafts(),recoveryAll(key)]);
-    const bySlug=new Map(local.filter(r=>r.document.slug).map(r=>[r.document.slug,r]));
     const entries=[];
     for(const file of files) {
-      if(bySlug.has(file.name.slice(0,-5))) continue;
       const slug=file.name.slice(0,-5);
-      entries.push({kind:'github',slug,title:slug.replace(/-/g,' ')});
+      entries.push({kind:'github',slug,title:slug.replace(/-/g,' '),remoteSha:file.sha||null});
     }
     await Promise.all(entries.map(async entry=>{
       try {
         const source=await github.file(`drafts/${entry.slug}.json`,'drafts');
         const draft=validateNote(JSON.parse(source.text));
+        draft.remoteSha=source.sha;entry.document=draft;entry.remoteSha=source.sha;
         entry.title=draft.title||entry.title;
         entry.updatedAt=Date.parse(draft.remoteSavedAt||'')||0;
+        entry.createdAt=Number(draft.createdAt)||0;
+        if(!entry.createdAt || !entry.updatedAt) {
+          const times=await github.fileTimes(`drafts/${entry.slug}.json`,'drafts').catch(()=>({createdAt:0,savedAt:0}));
+          entry.createdAt||=times.createdAt;entry.updatedAt||=times.savedAt;
+        }
+        if(entry.createdAt&&!draft.createdAt) draft.createdAt=entry.createdAt;
       } catch { /* A damaged remote draft still appears under its filename. */ }
     }));
-    for(const record of local) entries.push({kind:'local',document:record.document,slug:record.document.slug,title:record.document.title||'Untitled note',updatedAt:record.savedAt});
+    for(const record of local) {
+      const remote=record.document.slug&&entries.find(entry=>entry.slug===record.document.slug);
+      if(remote) {
+        remote.document=record.document;remote.title=record.document.title||remote.title;
+        remote.updatedAt=record.savedAt;remote.createdAt=Number(record.document.createdAt)||remote.createdAt||record.savedAt;
+        remote.kind='recovered';
+      } else entries.push({kind:'local',document:record.document,slug:record.document.slug,title:record.document.title||'Untitled note',createdAt:Number(record.document.createdAt)||Number(record.document.updatedAt)||record.savedAt,updatedAt:record.savedAt});
+    }
     list.replaceChildren();
     if(!entries.length) {const p=document.createElement('p');p.textContent='No drafts yet.';list.append(p);}
     entries.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
@@ -306,25 +327,61 @@ async function showDashboard() {
       const row=document.createElement('div'); row.className='draft-row';
       const button=document.createElement('button'); button.type='button'; button.className='draft-title';button.textContent=entry.title;
       button.addEventListener('click',()=>openDraft(entry));
+      const meta=document.createElement('div');meta.className='draft-meta';
+      const side=document.createElement('span');side.className='draft-kind';side.textContent={local:'Local recovery',recovered:'Local recovery over GitHub draft',github:'GitHub draft'}[entry.kind];
+      const created=document.createElement('span');created.className='draft-created';created.textContent=`Created ${formatDraftTime(entry.createdAt)}`;
+      const saved=document.createElement('span');saved.className='draft-saved';saved.textContent=`Last saved ${formatDraftTime(entry.updatedAt)}`;
+      meta.append(side,created,saved);
       const actions=document.createElement('div');actions.className='draft-actions';
-      const side=document.createElement('small');side.textContent=entry.kind==='local'?'Local recovery':'GitHub draft';
       const saveAs=document.createElement('button');saveAs.type='button';saveAs.className='save-as';saveAs.textContent='Save as';
       saveAs.addEventListener('click',()=>openDialog('save-as',null,{entry}));
-      actions.append(side,saveAs);row.append(button,actions);list.append(row);
+      const remove=document.createElement('button');remove.type='button';remove.className='delete-draft';remove.textContent='Delete';
+      remove.addEventListener('click',()=>openDialog('delete-draft',null,{entry}));
+      actions.append(saveAs,remove);row.append(button,meta,actions);list.append(row);
     }
   } catch(error) {list.textContent=`Could not load drafts: ${error.message}`;}
 }
 async function entryDocument(entry) {
-  if(entry.kind==='local') return validateNote(structuredClone(entry.document));
+  if(entry.document) return validateNote(structuredClone(entry.document));
   const file=await github.file(`drafts/${entry.slug}.json`,'drafts');
   if(!file) throw new Error('That draft no longer exists on GitHub.');
   const loaded=validateNote(JSON.parse(file.text));loaded.remoteSha=file.sha;
   return loaded;
 }
+async function titleIsTaken(title,{excludeId=null,excludeSlug=null}={}) {
+  const target=String(title).trim();
+  if(!target) return false;
+  const local=await recoveryAll(key);
+  if(local.some(record=>record.document.id!==excludeId && record.document.slug!==excludeSlug && record.document.title.trim()===target)) return true;
+  const files=await github.drafts();
+  for(const file of files) {
+    const slug=file.name.slice(0,-5);
+    if(slug===excludeSlug) continue;
+    try {
+      const source=await github.file(`drafts/${slug}.json`,'drafts');
+      const draft=validateNote(JSON.parse(source.text));
+      if(draft.id!==excludeId && draft.title.trim()===target) return true;
+    } catch { /* A damaged draft cannot establish a conflicting title. */ }
+  }
+  return false;
+}
+async function assertUniqueTitle(document) {
+  if(await titleIsTaken(document.title,{excludeId:document.id,excludeSlug:document.slug})) {
+    throw new Error('Another draft already uses exactly this title. Choose a different title.');
+  }
+}
+async function ensureCreatedAt(document) {
+  if(Number(document.createdAt)) return;
+  if(document.slug&&document.remoteSha) {
+    const times=await github.fileTimes(`drafts/${document.slug}.json`,'drafts').catch(()=>({createdAt:0}));
+    document.createdAt=times.createdAt||Date.now();return;
+  }
+  document.createdAt=Date.now();
+}
 async function openDraft(entry) {
   try {
     const loaded=await entryDocument(entry);
-    loadNote(loaded,entry.kind==='local');
+    loadNote(loaded,entry.kind!=='github');
   } catch(error) {notice(`Could not open draft: ${error.message}`,true);}
 }
 async function resumeRequested() {
@@ -420,10 +477,10 @@ function openDialog(type,id=null,context={}) {
   const object=type==='note'?note.notes[id]:id?note.objects[id]:null;
   dialogContext={type,id,...context};
   const fields=$('dialogFields');fields.replaceChildren();
-  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',note:'Edit note',token:'Replace GitHub token','save-as':'Save draft as'}[type];
+  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',note:'Edit note',token:'Replace GitHub token','save-as':'Save draft as','delete-draft':'Delete draft'}[type];
   $('dialogTitle').textContent=heading;
   $('deleteObject').hidden=!id||type==='note';
-  const submit=$('contentForm').querySelector('[type=submit]');submit.disabled=false;submit.textContent=id?'Save':'Insert';
+  const submit=$('contentForm').querySelector('[type=submit]');submit.disabled=false;submit.textContent=id?'Save':'Insert';submit.classList.toggle('danger-button',type==='delete-draft');
   if(type==='address') {
     fields.append(fieldHTML('slug','Public filename (without .html)',slugify(note.title)));
     $('contentForm').querySelector('[type=submit]').textContent='Save draft';
@@ -454,6 +511,9 @@ function openDialog(type,id=null,context={}) {
   } else if(type==='save-as') {
     fields.append(fieldHTML('title','New title',context.entry?.title||''));
     $('contentForm').querySelector('[type=submit]').textContent='Create copy';
+  } else if(type==='delete-draft') {
+    const warning=document.createElement('p');warning.textContent=`Permanently delete “${context.entry?.title||'Untitled note'}”? This cannot be undone. Any published page is unaffected.`;
+    fields.append(warning);$('contentForm').querySelector('[type=submit]').textContent='Delete permanently';
   }
   $('contentDialog').showModal();
   fields.querySelector('input,textarea')?.focus();
@@ -463,6 +523,14 @@ async function applyDialog(event) {
   const {type,id}=dialogContext||{};
   const form=$('contentForm');const data=new FormData(form);
   try {
+    if(type==='delete-draft') {
+      const submit=form.querySelector('[type=submit]');submit.disabled=true;
+      const entry=dialogContext.entry;
+      if(entry.slug&&entry.remoteSha) await github.deleteDraft(entry.slug,entry.remoteSha);
+      const records=await recoveryAll(key);
+      for(const record of records) if(record.document.id===entry.document?.id || (entry.slug&&record.document.slug===entry.slug)) await recoveryDelete(record.id);
+      $('contentDialog').close();notice('Draft permanently deleted.');await showDashboard();return;
+    }
     if(type==='save-as') {
       const submit=form.querySelector('[type=submit]');submit.disabled=true;
       const title=String(data.get('title')).trim();
@@ -473,10 +541,11 @@ async function applyDialog(event) {
         github.file(`drafts/${slug}.json`,'drafts'),github.file(`${slug}.html`,'main'),
       ]);
       if(local || existing || publicPage) throw new Error('A draft or published note already uses that title-derived address.');
+      if(await titleIsTaken(title)) throw new Error('Another draft already uses exactly this title. Choose a different title.');
       const source=await entryDocument(dialogContext.entry);
       const copy=structuredClone(source);
       copy.id=crypto.randomUUID();copy.title=title;copy.slug=slug;
-      copy.remoteSha=null;copy.remoteSavedAt='';copy.publicationDate='';copy.updatedAt=Date.now();
+      copy.remoteSha=null;copy.remoteSavedAt='';copy.publicationDate='';copy.createdAt=Date.now();copy.updatedAt=copy.createdAt;
       await github.saveDraft(copy);
       await recoveryPut(copy.id,copy,key);
       $('contentDialog').close();loadNote(copy,true);notice('New draft created. The original draft is unchanged.');
@@ -605,6 +674,8 @@ async function remoteAction(task) {
 async function writeDraft() {
   await remoteAction(async()=>{
     localSnapshot();
+    await assertUniqueTitle(note);
+    await ensureCreatedAt(note);
     await github.saveDraft(note);
     githubStamp();history.replaceState(null,'',`editor.html?draft=${encodeURIComponent(note.slug)}`);
     revision++;await saveLocal();
@@ -639,6 +710,8 @@ async function publish() {
   if(!await chooseAddress('publish')) return;
   await remoteAction(async()=>{
     localSnapshot();
+    await assertUniqueTitle(note);
+    await ensureCreatedAt(note);
     if(!note.publicationDate) note.publicationDate=localISODate();
     await github.saveDraft(note);
     await github.publish(note);
@@ -699,8 +772,8 @@ $('unlockForm').addEventListener('submit',async event=>{
 });
 $('newNote').addEventListener('click',()=>{loadNote(newNote());markChanged();$('noteTitle').focus();});
 $('dashboardLock').addEventListener('click',lock);
-$('noteTitle').addEventListener('input',()=>{markChanged();updateCollapsedHeader();});
-$('noteSubtitle').addEventListener('input',()=>{markChanged();updateCollapsedHeader();});
+$('noteTitle').addEventListener('input',event=>{resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
+$('noteSubtitle').addEventListener('input',event=>{resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
 $('noteTitle').addEventListener('keydown',event=>{
   if(event.key==='Enter' && !event.isComposing) {event.preventDefault();$('noteSubtitle').focus();}
 });
@@ -832,7 +905,10 @@ document.addEventListener('fullscreenchange',()=>{
   if(!document.fullscreenElement) {document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;}
 });
 window.addEventListener('scroll',()=>requestAnimationFrame(updateCollapsedHeader),{passive:true});
-window.addEventListener('resize',()=>requestAnimationFrame(()=>{layoutNotes();updateCollapsedHeader();}));
+window.addEventListener('resize',()=>requestAnimationFrame(()=>{
+  if(note&&!$('workspace').hidden) {resizeHeadingField($('noteTitle'));resizeHeadingField($('noteSubtitle'));}
+  layoutNotes();updateCollapsedHeader();
+}));
 window.addEventListener('pagehide',()=>{if(revision!==localRevision) saveLocal();token=null;key=null;github=new GitHub();});
 window.addEventListener('pageshow',event=>{if(event.persisted) location.reload();});
 boot();
