@@ -16,7 +16,7 @@
     },
     {
       "type": "p",
-      "html": ""
+      "html": "<br>"
     },
     {
       "type": "object",
@@ -24,11 +24,15 @@
     },
     {
       "type": "p",
-      "html": "But a lightyear is not a distance in the way we commonly understand that term—as a length of space between two points coexisting at the same time. Einstein broke open the secret in 1905 that all times and distances are relative—measurements are specific to a particular three-dimensional reference frame. Hermann Minkowski followed Einstein&#39;s rationale to the conclusion that intuitive (Euclidean) space has no primitive existence at all. A division of spacetime into space and time only arises relative to a unique timelike observer; two points separated in space never exist at the same time."
+      "html": "But a lightyear is not a distance in the way we commonly understand that term—as a length of space between two points coexisting at the same time. Einstein broke open the secret in 1905<span class=\"editor-reference\" data-note-id=\"e33661d6-db5a-4c5b-8408-edde2137ff29\" contenteditable=\"false\">·</span> that all times and distances are relative—measurements are specific to a particular three-dimensional reference frame. Hermann Minkowski followed Einstein&#39;s rationale to the conclusion that intuitive (Euclidean) space has no primitive existence at all.<span class=\"editor-reference\" data-note-id=\"424a4dd4-6cc5-430e-8069-bc3e1979e172\" contenteditable=\"false\">·</span> A division of spacetime into space and time only arises relative to a unique timelike observer; two points separated in space never exist at the same time."
     },
     {
       "type": "p",
       "html": "For life on Earth, different measurements of time and space usually correspond closely enough to be workable because, in the big picture, we are all very nearby to one another and we are all moving in almost the same direction at almost the same speed all the time."
+    },
+    {
+      "type": "p",
+      "html": ""
     },
     {
       "type": "p",
@@ -47,7 +51,16 @@
       "html": "I propose that this feeling is unjustified: it hides a logical error."
     }
   ],
-  "notes": {},
+  "notes": {
+    "e33661d6-db5a-4c5b-8408-edde2137ff29": {
+      "type": "sidenote",
+      "html": ""
+    },
+    "424a4dd4-6cc5-430e-8069-bc3e1979e172": {
+      "type": "sidenote",
+      "html": ""
+    }
+  },
   "objects": {
     "c380dc14-bd09-4b18-bc10-0a294140565f": {
       "type": "image",
@@ -57,7 +70,7 @@
       "fullwidth": false
     }
   },
-  "updatedAt": 1790290314685,
-  "remoteSavedAt": "2026-09-24T22:51:55.748Z",
+  "updatedAt": 1790292211034,
+  "remoteSavedAt": "2026-09-24T23:23:32.212Z",
   "createdAt": 1790289877033
 }
