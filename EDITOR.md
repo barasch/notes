@@ -43,6 +43,11 @@ for body text or headings; the menu adds sidenotes, margin notes, links, images,
 pull quotes, and native tables. For a table, paste tab-separated rows from a
 spreadsheet or another source. The first row becomes column headings, numeric
 cells align right, and the editor supports up to 20 columns and 1,000 data rows.
+Images may be uploaded to the repository or displayed from an external HTTPS
+address. Their captions are edited directly below or beside the image and support
+links and inline emphasis. Side captions move below the image on narrow screens.
+An external image remains dependent on its host; publishing does not copy it into
+the repository.
 Focus enters full screen; **Exit focus** or Escape returns to editing controls.
 
 Command on macOS, or Control on Windows and Linux, combines with B, I, and U for
@@ -59,13 +64,15 @@ images, but it is specific to this browser/device. Clearing site data removes
 unsaved local copies. Keep only one editing tab for a particular note at a time.
 
 **Save draft** alone commits a JSON source draft to the `drafts` branch. The
-initial filename is derived from the title in one click; if it is taken or the
-title cannot form an address, the editor asks for another. After saving, the
-filename stays stable even if the title changes. **Save as** on the Drafts page
-creates and opens an independent copy under a new title-derived filename and
-note identity; it does not alter the original draft or its published page. The
-Drafts page requires distinct titles for explicitly saved drafts, shows creation
-and last-saved times, and can permanently delete a draft after confirmation.
+initial filename is derived from the title. If that filename is occupied, the
+editor appends `-2`, `-3`, and so on. Saving again under the same title updates
+the current draft. Changing the title and saving creates a new, independently
+identified draft under the title-derived filename while leaving the preceding
+draft unchanged. Duplicate displayed titles are allowed and receive numbered
+filenames. **Save as** on the Drafts page asks for a filename and creates an
+independent copy without changing its displayed title or the source draft. The
+Drafts page displays each filename along with its creation and last-saved times,
+and can permanently delete a draft after confirmation.
 Deletion removes both the GitHub source draft and its local recovery copy but
 does not remove an already published page. The time above the title shows the
 last explicit GitHub draft save. Autosaves never touch GitHub or

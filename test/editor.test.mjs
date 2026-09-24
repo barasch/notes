@@ -34,13 +34,18 @@ test('slug and generated article preserve note anchors and reject pasted scripts
 test('tables, images, and index entries publish as semantic HTML without duplicate links',()=>{
   const note=newNote();note.slug='numbers';note.title='Numbers';note.publicationDate='2026-09-13';
   note.objects.t1={type:'table',caption:'Annual figures',tsv:'Year\tTotal\n2024\t1,200\n2025\t2,500',fullwidth:true};
-  note.objects.i1={type:'image',data:'data:image/png;base64,aGVsbG8=',alt:'A chart',caption:'Figure 1',fullwidth:false};
-  note.blocks=[{type:'object',id:'t1'},{type:'object',id:'i1'}];
+  note.objects.i1={type:'image',data:'data:image/png;base64,aGVsbG8=',alt:'A chart',captionHTML:'Figure <em>one</em> with <a href="https://example.org/source">source</a>.',captionPlacement:'side',fullwidth:false};
+  note.objects.i2={type:'image',data:'https://images.example.org/chart.jpg',external:true,alt:'External chart',captionHTML:'External figure',captionPlacement:'below',fullwidth:true};
+  note.blocks=[{type:'object',id:'t1'},{type:'object',id:'i1'},{type:'object',id:'i2'}];
   const page=renderPublishedPage(note);
   assert.match(page,/<th scope="col">Year<\/th>/);
   assert.match(page,/<caption>Annual figures<\/caption>/);
   assert.match(page,/<td class="numeric">2,500<\/td>/);
   assert.match(page,/src="img\/numbers\/i1.png" alt="A chart"/);
+  assert.match(page,/class="caption-side"/);
+  assert.match(page,/Figure <em>one<\/em> with <a href="https:\/\/example.org\/source">source<\/a>\./);
+  assert.match(page,/class="fullwidth caption-below"/);
+  assert.match(page,/src="https:\/\/images.example.org\/chart.jpg" alt="External chart"/);
   assert.throws(()=>renderPublishedPage({...note,objects:{t1:{type:'table',tsv:'A\n'+Array.from({length:1001},()=>1).join('\n')}}}),/1,000 data rows/);
   const template='<!doctype html><html><body><ul class="notes-list"></ul></body></html>';
   const once=updateIndex(template,note),twice=updateIndex(once,note);
@@ -104,7 +109,8 @@ test('publication writes the article, index, and images in one fast-forward comm
   }
   const fake=new Fake(),doc=newNote();doc.slug='numbers';doc.title='Numbers';doc.publicationDate='2026-09-13';
   doc.objects.img={type:'image',data:'data:image/png;base64,aGVsbG8=',alt:'Chart'};
-  doc.blocks=[{type:'p',html:'A new article.'},{type:'object',id:'img'}];
+  doc.objects.remote={type:'image',data:'https://images.example.org/remote.png',external:true,alt:'Remote'};
+  doc.blocks=[{type:'p',html:'A new article.'},{type:'object',id:'img'},{type:'object',id:'remote'}];
   await fake.publish(doc);
   const tree=fake.writes.find(write=>write.path==='/git/trees');
   assert.equal(tree.body.base_tree,'base-tree');
@@ -112,6 +118,7 @@ test('publication writes the article, index, and images in one fast-forward comm
   assert.match(tree.body.tree[0].content,new RegExp(`notes-editor-id" content="${doc.id}`));
   assert.match(tree.body.tree[1].content,/href="numbers.html"/);
   assert.equal(tree.body.tree[2].sha,'image-blob');
+  assert.equal(tree.body.tree.length,3,'external images remain external and are not uploaded as blobs');
   const commit=fake.writes.find(write=>write.path==='/git/commits');
   assert.deepEqual(commit.body.parents,['main-sha']);
   const update=fake.writes.find(write=>write.path==='/git/refs/heads/main');

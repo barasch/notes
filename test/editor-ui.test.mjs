@@ -6,6 +6,8 @@ import {indexedDB} from 'fake-indexeddb';
 import {utf8Base64, unlockCredential, createCredential, recoveryAll, editorBlockHTML, renderPublishedPage} from '../editor-core.js';
 
 const source=readFileSync(new URL('../editor.html',import.meta.url),'utf8');
+const editorCSS=readFileSync(new URL('../editor.css',import.meta.url),'utf8');
+const tufteCSS=readFileSync(new URL('../tufte.css',import.meta.url),'utf8');
 const files=new Map();
 let branchExists=false,githubWrites=0;
 const result=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
@@ -241,7 +243,7 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
   dom.window.close();
 });
 
-test('floating controls, compact saved title, common shortcuts, and Save as preserve the original draft',async()=>{
+test('floating controls, compact saved title, common shortcuts, and filename-based copies preserve earlier drafts',async()=>{
   const passphrase='a-third-long-passphrase-for-interface-tests';
   const {record:encrypted}=await createCredential('token-for-interface-tests',passphrase);
   files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'interface-auth'});
@@ -307,34 +309,103 @@ test('floating controls, compact saved title, common shortcuts, and Save as pres
   await until(()=>!document.getElementById('dashboardView').hidden);
   const originalRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-title')?.textContent==='Original title');
   assert.ok(originalRow);originalRow.querySelector('.save-as').click();
-  const newTitle=document.querySelector('#dialogFields [name=title]');newTitle.value='Independent copy';
+  const newFilename=document.querySelector('#dialogFields [name=slug]');newFilename.value='working-file';
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
-  await until(()=>!document.getElementById('workspace').hidden && title.value==='Independent copy');
+  await until(()=>!document.getElementById('workspace').hidden && location.search.includes('working-file'));
   assert.equal(files.get('drafts/original-title.json').text,original,'Save as leaves the source draft byte-for-byte intact');
-  const copy=JSON.parse(files.get('drafts/independent-copy.json').text);
+  const copy=JSON.parse(files.get('drafts/working-file.json').text);
   assert.notEqual(copy.id,originalId,'the copy has an independent note identity');
-  assert.equal(copy.title,'Independent copy');
+  assert.equal(copy.title,'Original title','Save as changes the filename, not the displayed title');
   assert.equal(copy.publicationDate,'');
   assert.ok(Number(copy.createdAt),'the copy records its creation time');
 
+  title.value='Independent copy';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
+  await until(()=>files.has('drafts/independent-copy.json'));
+  assert.equal(JSON.parse(files.get('drafts/working-file.json').text).title,'Original title','a title change leaves the preceding draft alone');
+  const renamed=JSON.parse(files.get('drafts/independent-copy.json').text);
+  assert.notEqual(renamed.id,copy.id,'a title change creates an independent draft');
+
   title.value='Original title';title.dispatchEvent(new window.Event('input',{bubbles:true}));
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
-  await until(()=>document.getElementById('toast').textContent.includes('exactly this title'));
-  assert.equal(JSON.parse(files.get('drafts/independent-copy.json').text).title,'Independent copy','a duplicate title is not saved to GitHub');
-  title.value='Independent copy';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  await until(()=>files.has('drafts/original-title-2.json'));
+  const numbered=JSON.parse(files.get('drafts/original-title-2.json').text);
+  assert.equal(numbered.title,'Original title','matching titles are allowed and receive a numbered filename');
   document.getElementById('menuButton').click();document.querySelector('[data-command=drafts]').click();
   await until(()=>!document.getElementById('dashboardView').hidden);
-  const copyRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-title')?.textContent==='Independent copy');
+  const copyRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-filename')?.textContent.includes('original-title-2'));
   assert.ok(copyRow.querySelector('.draft-created').textContent.startsWith('Created '));
   assert.ok(copyRow.querySelector('.draft-saved').textContent.startsWith('Last saved '));
   copyRow.querySelector('.delete-draft').click();
   assert.equal(document.getElementById('contentDialog').open,true);
   assert.match(document.getElementById('dialogFields').textContent,/cannot be undone/i);
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
-  await until(()=>!files.has('drafts/independent-copy.json'));
-  await until(()=>![...document.querySelectorAll('.draft-title')].some(button=>button.textContent==='Independent copy'));
+  await until(()=>!files.has('drafts/original-title-2.json'));
+  await until(()=>![...document.querySelectorAll('.draft-filename')].some(element=>element.textContent.includes('original-title-2')));
   const {key:deletionKey}=await unlockCredential(encrypted,passphrase);
-  assert.equal((await recoveryAll(deletionKey)).some(record=>record.document.id===copy.id),false,'permanent delete also removes local recovery');
+  assert.equal((await recoveryAll(deletionKey)).some(record=>record.document.id===numbered.id),false,'permanent delete also removes local recovery');
   title.getBoundingClientRect=titleRect;
+  dom.window.close();
+});
+
+test('external images have directly editable rich captions and side captions stack on mobile',async()=>{
+  const passphrase='a-fourth-long-passphrase-for-image-tests';
+  const {record:encrypted}=await createCredential('token-for-image-tests',passphrase);
+  files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'image-auth'});
+  const dom=page('https://barasch.github.io/notes/editor.html');
+  const commands=[];document.execCommand=command=>{commands.push(command);return true;};
+  await import('../editor.js?images');
+  await until(()=>!document.getElementById('unlockView').hidden);
+  document.getElementById('unlockPassphrase').value=passphrase;
+  document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  document.getElementById('newNote').click();
+  document.getElementById('noteTitle').value='Image note';
+  document.getElementById('noteTitle').dispatchEvent(new window.Event('input',{bubbles:true}));
+
+  const body=document.getElementById('editorBody'),block=body.firstElementChild;
+  const range=document.createRange();range.selectNodeContents(block);range.collapse(true);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(range);
+  document.dispatchEvent(new window.Event('selectionchange'));
+  document.getElementById('menuButton').click();document.querySelector('[data-insert=image]').click();
+  assert.ok(document.querySelector('#dialogFields [name=file]'));
+  document.querySelector('#dialogFields [name=externalUrl]').value='https://images.example.org/photo.jpg';
+  document.querySelector('#dialogFields [name=alt]').value='A documentary photograph';
+  document.querySelector('#dialogFields [name=captionPlacement][value=side]').checked=true;
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+
+  const figure=body.querySelector('figure.image-object'),caption=figure.querySelector('figcaption');
+  assert.ok(figure.classList.contains('caption-side'));
+  assert.equal(figure.querySelector('img').src,'https://images.example.org/photo.jpg');
+  assert.equal(caption.getAttribute('contenteditable'),'true');
+  caption.innerHTML='A <em>documentary</em> image with <a href="https://example.org/source">source</a>.';
+  caption.dispatchEvent(new window.Event('input',{bubbles:true}));
+  const captionRange=document.createRange();captionRange.selectNodeContents(caption.querySelector('em'));
+  window.getSelection().removeAllRanges();window.getSelection().addRange(captionRange);
+  document.dispatchEvent(new window.Event('selectionchange'));
+  caption.dispatchEvent(new window.KeyboardEvent('keydown',{key:'i',metaKey:true,bubbles:true,cancelable:true}));
+  assert.deepEqual(commands,['italic'],'Command-I applies to a caption selection');
+  caption.dispatchEvent(new window.KeyboardEvent('keydown',{key:'k',metaKey:true,bubbles:true,cancelable:true}));
+  assert.equal(document.querySelector('#dialogFields [name=url]').value,'','Command-K opens link editing from the caption selection');
+  document.querySelector('#dialogFields [name=text]').value='documentary';
+  document.querySelector('#dialogFields [name=url]').value='https://example.org/documentary';
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  assert.equal(caption.querySelector('a').getAttribute('href'),'https://example.org/documentary','a link can be inserted directly into a caption');
+  caption.innerHTML='A <em>documentary</em> image with <a href="https://example.org/source">source</a>.';
+  caption.dispatchEvent(new window.Event('input',{bubbles:true}));
+
+  figure.querySelector('img').click();
+  assert.equal(document.querySelector('#dialogFields [name=caption]'),null,'caption text is not trapped in the image dialog');
+  assert.equal(document.querySelector('#dialogFields [name=captionPlacement][value=side]').checked,true);
+  document.getElementById('cancelDialog').click();
+  await until(()=>document.getElementById('menuButton').classList.contains('local-ok'));
+  const {key}=await unlockCredential(encrypted,passphrase);
+  const recovered=(await recoveryAll(key)).find(record=>record.document.title==='Image note').document;
+  const image=Object.values(recovered.objects).find(object=>object.type==='image');
+  assert.equal(image.external,true);
+  assert.match(image.captionHTML,/<em>documentary<\/em>/);
+  assert.match(renderPublishedPage({...recovered,slug:'image-note'}),/figure class="caption-side"[\s\S]*<figcaption>A <em>documentary<\/em> image with <a href="https:\/\/example.org\/source">source<\/a>\.<\/figcaption>/);
+  assert.match(tufteCSS,/@media \(max-width: 760px\)[\s\S]*figure\.caption-side \{[\s\S]*display: block;/);
+  assert.match(editorCSS,/\.toast \{[^}]*top: calc\(61px \+ \.75rem\);[^}]*left: 50%;[^}]*translateX\(-50%\)/);
   dom.window.close();
 });
