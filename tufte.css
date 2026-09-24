@@ -230,20 +230,40 @@ figure {
     margin: 0 0 3em 0;
 }
 
+figure > img {
+    display: block;
+    width: 100%;
+}
+
 figcaption {
-    float: right;
-    clear: right;
-    margin-top: 0;
+    float: none;
+    clear: none;
+    width: 100%;
+    margin-top: 0.55rem;
     margin-bottom: 0;
     font-size: 1.1rem;
-    line-height: 1.6;
+    line-height: 1.35;
     vertical-align: baseline;
     position: relative;
-    max-width: 40%;
+    max-width: none;
+    text-align: left;
 }
 
 figure.fullwidth figcaption {
-    margin-right: 24%;
+    margin-right: 0;
+}
+
+figure.caption-side {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 0.48fr);
+    align-items: start;
+    gap: 1.5rem;
+    max-width: 90%;
+}
+
+figure.caption-side figcaption {
+    width: auto;
+    margin-top: 0;
 }
 
 a:link,
@@ -588,8 +608,14 @@ label.margin-toggle:not(.sidenote-number) {
         max-width: 90%;
     }
 
+    figure.caption-side {
+        display: block;
+    }
+
     figcaption,
     figure.fullwidth figcaption {
+        width: 100%;
+        margin-top: 0.55rem;
         margin-right: 0%;
         max-width: none;
     }
