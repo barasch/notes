@@ -8,11 +8,11 @@
   "blocks": [
     {
       "type": "p",
-      "html": "Astronomical scales are bewildering to human intuition. Billions of stars, billions of galaxies, and structure so large that distance and time blur together. The Milky Way is said to be on the order of 100,000 lightyears across. Outside the astronomy lab, it is difficult to give such quantities meaning."
+      "html": "Astronomical scales bewilder human intuition. Billions of stars, billions of galaxies. Structure so large that distance and time blur together. The Milky Way is said to be on the order of 100,000 lightyears across. Outside the astronomy lab, it is difficult to give such quantities meaning."
     },
     {
       "type": "p",
-      "html": "One lightyear is often introduced as the distance a beam of light can cross in a year. To imagine that, we might think of light speed—in one second, circling the Earth seven times or reaching two-thirds of the way to the Moon—and then expand that second into a year. A strain for any human imagination."
+      "html": "One lightyear is often introduced as the distance a beam of light can cross in a year. To imagine that, we might think of light speed—in one second, circling the Earth seven times or reaching two-thirds of the way to the Moon (30 Earths away)—and then expand that second into a year. A strain for any human imagination. From the Sun to Neptune is only four light-hours."
     },
     {
       "type": "object",
@@ -20,7 +20,7 @@
     },
     {
       "type": "p",
-      "html": "But a lightyear is not a distance in the way we commonly understand that term—not a length of space between two points coexisting at the same time. Einstein broke open the secret in 1905 that all times and distances are relative. Hermann Minkowski followed the thought to the conclusion that intuitive (Euclidean) space has no primitive existence at all.<span class=\"editor-reference\" data-note-id=\"f72d23fb-1194-48f8-b8f6-21066774d882\" contenteditable=\"false\">·</span> A division of spacetime into space and time only arises relative to a unique timelike observer; two points separated by a length of space never exist at the same time."
+      "html": "But a lightyear is not a distance in the way we commonly understand that term—not a length of space between two points coexisting at the same time. The secret broke open in the first decade of the twentieth century that all times and distances are relative.<span class=\"editor-reference\" data-note-id=\"e53ea1a9-8366-4a62-91c8-84e5072d06be\" contenteditable=\"false\">·</span> That insight was soon followed by the conclusion that intuitive, three-dimensional space has no primitive existence.<span class=\"editor-reference\" data-note-id=\"f72d23fb-1194-48f8-b8f6-21066774d882\" contenteditable=\"false\">·</span> A division of spacetime into space and time only arises relative to a unique timelike observer; two points separated by a length of space never exist at the same time."
     },
     {
       "type": "object",
@@ -32,7 +32,7 @@
     },
     {
       "type": "p",
-      "html": "As an illustration, consider the Andromeda galaxy, seen about 2.5 million lightyears away. Our telescopes are collecting light that left Andromeda 2.5 million years ago. If one day after that light got on the road, the Andromeda galaxy underwent a sudden acceleration and began to approach us at 70% of light speed, the galaxy would already have traveled 1.75 million light years by now; its present distance in our frame of reference would be only 750,000 lightyears. Yet Andromeda would appear unchanged tonight; we would not see any sign of its new trajectory."
+      "html": "Consider the Andromeda galaxy, seen about 2.5 million lightyears away. Our telescopes are collecting light that left Andromeda 2.5 million years ago. So, if one day after that light got on the road, the Andromeda galaxy underwent a sudden acceleration and began to approach us at 70% of light speed, the galaxy would already have traveled 1.75 million light years by now; its present distance in our frame of reference would be only 750,000 lightyears. Yet our sky would appear unchanged tonight; we would not see any sign of Andromeda&#39;s approach."
     },
     {
       "type": "p",
@@ -40,7 +40,11 @@
     },
     {
       "type": "p",
-      "html": "This feeling is unjustified: it hides a logical error."
+      "html": "This feeling is unjustified. It has a logical error knit into it. Let us see if we can untie that knot."
+    },
+    {
+      "type": "p",
+      "html": ""
     },
     {
       "type": "p",
@@ -50,7 +54,11 @@
   "notes": {
     "f72d23fb-1194-48f8-b8f6-21066774d882": {
       "type": "sidenote",
-      "html": ""
+      "html": "Minkowski (1909)"
+    },
+    "e53ea1a9-8366-4a62-91c8-84e5072d06be": {
+      "type": "sidenote",
+      "html": "Einstein (1905)"
     }
   },
   "objects": {
@@ -69,8 +77,8 @@
       "source": "Hermann Minkowski, “Space and Time,” address delivered to the 80th Assembly of German Natural Scientists and Physicians, Cologne, September 21, 1908."
     }
   },
-  "updatedAt": 1790346832760,
-  "remoteSavedAt": "2026-09-25T14:33:53.382Z",
+  "updatedAt": 1790367978588,
+  "remoteSavedAt": "2026-09-25T20:26:19.258Z",
   "createdAt": 1790289877033,
   "savedTitle": "Scale and Significance"
 }
