@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id": "70fb9027-d45c-4d96-8f75-fafea30f7182",
+  "slug": "the-value-of-consent",
+  "title": "The Value of Consent",
+  "subtitle": "Crossed Purposes",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "object",
+      "id": "b4aecebd-92f8-4b93-8f2a-dc93589c9693"
+    },
+    {
+      "type": "object",
+      "id": "67193fbc-0e5f-48b3-ad99-6deee7510198"
+    },
+    {
+      "type": "object",
+      "id": "5a9b6c8f-da0c-4ec7-b007-6b84bb4f97ac"
+    },
+    {
+      "type": "object",
+      "id": "4a803138-3787-4594-b1cb-e594c456054a"
+    },
+    {
+      "type": "p",
+      "html": "Economics is widely misapprehended as a bloodless field, when the opposite is true. Economics is the <em>most</em> urgently moral field precisely because it is indifferent to morality as such. Compare G. K. Chesterton on a related principle: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Because economics treats the purposes of human activity as data, "
+    }
+  ],
+  "notes": {
+    "fbe879a5-42a4-4d49-85eb-dc14ec0c965d": {
+      "type": "sidenote",
+      "html": "<em><a href=\"https://www.gutenberg.org/files/68682/68682-h/68682-h.htm\">Charles Dickens</a></em> (1906)"
+    }
+  },
+  "objects": {
+    "67193fbc-0e5f-48b3-ad99-6deee7510198": {
+      "type": "quote",
+      "text": "\" . . . there is nothing /\nEither good or bad, but thinking makes it so . . . \"",
+      "source": "William Shakespeare, Hamlet (1601)"
+    },
+    "5a9b6c8f-da0c-4ec7-b007-6b84bb4f97ac": {
+      "type": "quote",
+      "text": "\"It is always the individual who thinks. Society does not think any more than it eats or drinks.\"",
+      "source": ""
+    },
+    "4a803138-3787-4594-b1cb-e594c456054a": {
+      "type": "quote",
+      "text": "\"It is always single individuals who say We; even if they say it in chorus, it yet remains an utterance of single individuals.\"",
+      "source": "Ludwig von Mises, Human Action (1949)"
+    },
+    "b4aecebd-92f8-4b93-8f2a-dc93589c9693": {
+      "type": "quote",
+      "text": "\" . . . words of so sweet breath composed / As made the things more rich. Their perfume lost, / Take these again, for to the noble mind / Rich gifts wax poor when givers prove unkind.\"",
+      "source": ""
+    }
+  },
+  "createdAt": 1790608492824,
+  "updatedAt": 1790627786123,
+  "savedTitle": "The Value of Consent",
+  "remoteSavedAt": "2026-09-28T20:36:26.547Z"
+}
