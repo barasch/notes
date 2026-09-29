@@ -24,11 +24,15 @@
     },
     {
       "type": "p",
-      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody moral battleground precisely because it is indifferent to morality as such. G. K. Chesterton made a similar observation about religious devotion in his critical study of Dickens: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Economics is intensely moral because it treats human purposes as irreducible data. Silent as to what we ought ultimately to value, economics keeps returning us to the question of whose decision will govern."
+      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody moral battleground precisely because it is indifferent to morality as such. G. K. Chesterton made a similar observation about religion in his critical study of Dickens: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Economics is intensely moral because it treats human purposes as irreducible data. Silent as to what we ought ultimately to value, economics keeps returning us to the question of whose decision will govern."
     },
     {
       "type": "p",
-      "html": ""
+      "html": "In essays and talks, the late economist Walter E. Williams used to compare voluntary transactions to &quot;seduction&quot; (meant not as a pejorative implying manipulation but as a euphemism for sex outside marriage) and coerced government transfers to rape. In trade and sex, both participants expect to derive some good; when the government taxes and spends, on the other hand, it follows the logic of rape: it satisfies one party only by harming someone else."
+    },
+    {
+      "type": "p",
+      "html": "Another evocative device was to express a representative American individual tax burden as the fraction of a working year for which the individual was uncompensated. Starting on January 1, Williams calculated that the end of the hypothetical indenture would fall on dates in May and June as rates varied over the years. If that extended to a whole year"
     }
   ],
   "notes": {
@@ -60,7 +64,7 @@
     }
   },
   "createdAt": 1790608492824,
-  "updatedAt": 1790629947094,
-  "remoteSavedAt": "2026-09-28T21:12:27.587Z",
+  "updatedAt": 1790644925351,
+  "remoteSavedAt": "2026-09-29T01:22:06.088Z",
   "savedTitle": "The Value of Consent"
 }
