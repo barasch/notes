@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'none'">
-  <title>Write — Notes</title>
+  <title>Writer</title>
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="stylesheet" href="tufte.css"/>
   <link rel="stylesheet" href="editor.css"/>
@@ -13,7 +13,7 @@
 <body class="editor-app">
   <div id="setupView" class="gate" hidden>
     <div class="gate-inner">
-      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <a class="site-wordmark" href="editor.html"><img src="favicon.png" alt=""><span>Writer</span></a>
       <h1>Set up the editor</h1>
       <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Notes+editor&amp;description=Write+notes+from+the+browser&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> for <code>barasch/notes</code> only, with Contents: read and write. Paste it here once. This page encrypts it before saving it in the repository.</p>
       <p>The encrypted file is public and can be attacked by guessing passwords offline. Use a unique, randomly generated passphrase and keep it safe.</p>
@@ -30,7 +30,7 @@
 
   <div id="unlockView" class="gate" hidden>
     <div class="gate-inner">
-      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <a class="site-wordmark" href="editor.html"><img src="favicon.png" alt=""><span>Writer</span></a>
       <h1>Unlock the editor</h1>
       <form id="unlockForm">
         <label>Passphrase<input id="unlockPassphrase" type="password" required autocomplete="off"></label>
@@ -42,7 +42,7 @@
 
   <div id="dashboardView" hidden>
     <header class="editor-toolbar dashboard-toolbar">
-      <a class="site-wordmark" href="index.html"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <a class="site-wordmark" href="editor.html"><img src="favicon.png" alt=""><span>Writer</span></a>
       <button id="dashboardLock" type="button" class="quiet-button">Lock</button>
     </header>
     <main class="editor-shell draft-dashboard">
@@ -54,7 +54,7 @@
 
   <div id="workspace" hidden>
     <header class="editor-toolbar">
-      <a class="site-wordmark" href="index.html" aria-label="Notes home"><img src="favicon.png" alt=""><span>Notes</span></a>
+      <a class="site-wordmark" href="editor.html" aria-label="Writer home"><img src="favicon.png" alt=""><span>Writer</span></a>
       <div id="collapsedNote" class="collapsed-note" hidden aria-live="polite">
         <span id="collapsedTitle" class="collapsed-title"></span>
         <span id="collapsedSubtitle" class="collapsed-subtitle"></span>
@@ -71,26 +71,41 @@
         </button>
         <div id="commandMenu" class="command-menu" hidden>
           <div class="command-group">
-            <p>Insert</p>
-            <button type="button" data-insert="sidenote">Sidenote</button>
-            <button type="button" data-insert="margin">Margin note</button>
-            <button type="button" data-insert="link">Link</button>
-            <button type="button" data-insert="image">Image</button>
-            <button type="button" data-insert="quote">Pull quote</button>
-            <button type="button" data-insert="table">Table</button>
+            <p>Editor</p>
+            <button type="button" data-command="replace-token">Replace token</button>
+            <button type="button" data-command="lock">Lock</button>
           </div>
           <div class="command-group">
             <p>Note</p>
-            <button type="button" data-command="drafts">Drafts</button>
-            <button type="button" id="menuSaveDraft" data-command="save">Save draft</button>
+            <button type="button" data-command="drafts">All drafts</button>
+            <button type="button" id="menuSaveDraft" data-command="save">Save</button>
+            <button type="button" id="menuSaveAs" data-command="save-as">Save as</button>
+            <button type="button" id="menuRevert" data-command="revert">Revert</button>
             <button type="button" id="menuPublish" data-command="publish">Publish</button>
-            <button type="button" data-command="focus">Focus</button>
           </div>
           <div class="command-group">
-            <p>Editor</p>
-            <button type="button" data-command="replace-token">Replace GitHub token</button>
-            <button type="button" data-command="lock">Lock</button>
+            <p>Insert</p>
+            <button type="button" id="openInsertMenu" class="submenu-opener" data-command="insert-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="insertMenu"><span>Insert</span><span aria-hidden="true">›</span></button>
           </div>
+          <div class="command-group">
+            <p>Appearance</p>
+            <div class="theme-options" role="radiogroup" aria-label="Color theme">
+              <button type="button" data-theme="system" role="radio">System</button>
+              <button type="button" data-theme="light" role="radio">Light</button>
+              <button type="button" data-theme="dark" role="radio">Dark</button>
+            </div>
+            <button type="button" data-command="focus">Focus</button>
+          </div>
+        </div>
+        <div id="insertMenu" class="command-menu command-submenu" role="menu" aria-label="Insert" hidden>
+          <button type="button" class="submenu-back" data-command="insert-back"><span aria-hidden="true">‹</span><span>Back</span></button>
+          <button type="button" role="menuitem" data-insert="sidenote">Sidenote</button>
+          <button type="button" role="menuitem" data-insert="margin">Margin note</button>
+          <button type="button" role="menuitem" data-insert="link">Link</button>
+          <button type="button" role="menuitem" data-insert="image">Image</button>
+          <button type="button" role="menuitem" data-insert="quote">Pull quote</button>
+          <button type="button" role="menuitem" data-insert="table">Table</button>
+          <button type="button" role="menuitem" data-insert="embed">Embed</button>
         </div>
       </div>
     </div>

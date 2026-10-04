@@ -60,6 +60,21 @@ export function safeImageURL(value) {
   } catch { return ''; }
 }
 
+export function sameDraftContent(left, right) {
+  const authored = value => ({
+    version:value?.version,
+    id:value?.id,
+    slug:value?.slug,
+    title:value?.title,
+    subtitle:value?.subtitle,
+    publicationDate:value?.publicationDate,
+    blocks:value?.blocks,
+    notes:value?.notes,
+    objects:value?.objects,
+  });
+  return JSON.stringify(authored(left)) === JSON.stringify(authored(right));
+}
+
 export function newNote() {
   const now = Date.now();
   return {
@@ -154,6 +169,70 @@ export function blocksFromEditor(editor, notes) {
   return blocks.length ? blocks : [{type:'p',html:''}];
 }
 
+const httpsURL = value => safeImageURL(value) || '';
+
+function cleanTwitterChildren(nodes) {
+  const walk=node=>{
+    if(node.nodeType===3) return escapeHTML(node.nodeValue);
+    if(node.nodeType!==1) return '';
+    const tag=node.tagName.toLowerCase();
+    if(tag==='script'||tag==='style') return '';
+    const inner=[...node.childNodes].map(walk).join('');
+    if(tag==='br') return '<br>';
+    if(tag==='strong'||tag==='em') return `<${tag}>${inner}</${tag}>`;
+    if(tag==='p') {
+      const language=node.getAttribute('lang')||'';
+      const direction=node.getAttribute('dir')||'';
+      const lang=/^[a-z-]{1,20}$/i.test(language)?` lang="${escapeHTML(language)}"`:'';
+      const dir=/^(ltr|rtl|auto)$/.test(direction)?` dir="${direction}"`:'';
+      return `<p${lang}${dir}>${inner}</p>`;
+    }
+    if(tag==='a') {
+      const href=httpsURL(node.getAttribute('href'));
+      return href?`<a href="${escapeHTML(href)}">${inner}</a>`:inner;
+    }
+    return inner;
+  };
+  return [...nodes].map(walk).join('');
+}
+
+function twitterEmbedHTML(value='') {
+  const template=document.createElement('template');template.innerHTML=String(value||'');
+  const blockquote=template.content.querySelector('blockquote.twitter-tweet');
+  if(!blockquote) return '';
+  return `<blockquote class="twitter-tweet">${cleanTwitterChildren(blockquote.childNodes)}</blockquote>`;
+}
+
+export function normalizeEmbedCode(value, {fullwidth=false}={}) {
+  const template=document.createElement('template');template.innerHTML=String(value||'').trim();
+  const elements=[...template.content.children];
+  const scripts=elements.filter(element=>element.tagName==='SCRIPT');
+  const twitter=elements.find(element=>element.matches('blockquote.twitter-tweet'));
+  if(twitter) {
+    const standardScript=element=>element.tagName==='SCRIPT'&&httpsURL(element.src)==='https://platform.x.com/widgets.js';
+    if(elements.some(element=>element!==twitter&&!standardScript(element))||scripts.some(script=>!standardScript(script))) {
+      throw new Error('X embeds may contain only the post blockquote and the standard platform.x.com widget script.');
+    }
+    return {type:'embed',provider:'x',html:twitterEmbedHTML(twitter.outerHTML),fullwidth:Boolean(fullwidth)};
+  }
+  if(scripts.length) throw new Error('This provider’s script is not supported. X widget code and single HTTPS iframes are supported.');
+  if(elements.length!==1||elements[0].tagName!=='IFRAME') throw new Error('Paste an X post embed or one HTTPS iframe.');
+  const iframe=elements[0],src=httpsURL(iframe.getAttribute('src'));
+  if(!src) throw new Error('Embedded media must use an HTTPS iframe address.');
+  const width=Number.parseFloat(iframe.getAttribute('width'));
+  const height=Number.parseFloat(iframe.getAttribute('height'));
+  const aspectRatio=width>0&&height>0?Math.min(4,Math.max(.25,width/height)):16/9;
+  const allow=String(iframe.getAttribute('allow')||'').replace(/[\u0000-\u001f\u007f]/g,'').slice(0,500);
+  return {type:'embed',provider:'iframe',src,title:String(iframe.getAttribute('title')||'Embedded media').slice(0,300),allow,allowFullscreen:iframe.hasAttribute('allowfullscreen'),aspectRatio,fullwidth:Boolean(fullwidth)};
+}
+
+function quoteSourceHTML(object) {
+  const source=String(object.source||'').trim(),url=safeURL(object.sourceUrl);
+  if(!source&&!url) return '';
+  const label=escapeHTML(source||url);
+  return `<footer><cite>${url?`<a href="${escapeHTML(url)}">${label}</a>`:label}</cite></footer>`;
+}
+
 export function editorBlockHTML(block, doc) {
   if (block.type === 'object') {
     const object = doc.objects[block.id];
@@ -167,7 +246,14 @@ export function editorBlockHTML(block, doc) {
     if (object.type === 'table') {
       return `<div class="editor-object editor-table ${object.fullwidth ? 'fullwidth' : ''}" data-object-id="${id}" contenteditable="false">${tableHTML(object)}</div>`;
     }
-    return `<blockquote class="editor-object pullquote" data-object-id="${id}" contenteditable="false"><p>${escapeHTML(object.text)}</p>${object.source ? `<footer>${escapeHTML(object.source)}</footer>` : ''}</blockquote>`;
+    if (object.type === 'embed') {
+      const classes=`editor-object embed-object embed-${object.provider==='x'?'x':'iframe'} ${object.fullwidth?'fullwidth':''}`;
+      if(object.provider==='x') return `<div class="${classes}" data-object-id="${id}" contenteditable="false"><p class="embed-label">X post · static preview</p>${twitterEmbedHTML(object.html)}</div>`;
+      const source=httpsURL(object.src);
+      const host=source?new URL(source).hostname:'invalid address';
+      return `<div class="${classes}" data-object-id="${id}" contenteditable="false"><p class="embed-label">Embedded media · ${escapeHTML(host)}</p><p>${escapeHTML(object.title||source||'External media')}</p></div>`;
+    }
+    return `<blockquote class="editor-object pullquote" data-object-id="${id}" contenteditable="false"><p>${escapeHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
   }
   const tag = ['p','h2','h3'].includes(block.type) ? block.type : 'p';
   return `<${tag}>${cleanInline(block.html,doc.notes) || '<br>'}</${tag}>`;
@@ -213,7 +299,20 @@ export function publishedBlockHTML(block, doc) {
       return `<figure class="${classes}"><img src="${escapeHTML(source)}" alt="${escapeHTML(object.alt)}" loading="lazy" decoding="async"/>${hasCaption?`<figcaption>${caption}</figcaption>`:''}</figure>`;
     }
     if (object.type === 'table') return `<div class="table-wrapper editor-published-table ${object.fullwidth ? 'fullwidth' : ''}">${tableHTML(object)}</div>`;
-    return `<blockquote class="pullquote"><p>${escapeHTML(object.text)}</p>${object.source ? `<footer>${escapeHTML(object.source)}</footer>` : ''}</blockquote>`;
+    if (object.type === 'embed') {
+      const classes=`embed-object embed-${object.provider==='x'?'x':'iframe'} ${object.fullwidth?'fullwidth':''}`;
+      if(object.provider==='x') {
+        const fallback=twitterEmbedHTML(object.html);
+        if(!fallback) throw new Error('This X embed is missing its quoted post.');
+        return `<div class="${classes}">${fallback}</div>`;
+      }
+      const source=httpsURL(object.src);
+      if(!source) throw new Error('Embedded media must use an HTTPS iframe address.');
+      const ratio=Number.isFinite(object.aspectRatio)?Math.min(4,Math.max(.25,object.aspectRatio)):16/9;
+      const allow=String(object.allow||'').replace(/[\u0000-\u001f\u007f]/g,'').slice(0,500);
+      return `<div class="${classes}" style="--embed-ratio:${ratio}"><iframe src="${escapeHTML(source)}" title="${escapeHTML(object.title||'Embedded media')}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"${allow?` allow="${escapeHTML(allow)}"`:''}${object.allowFullscreen?' allowfullscreen':''}></iframe></div>`;
+    }
+    return `<blockquote class="pullquote"><p>${escapeHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
   }
   const tag = ['p','h2','h3'].includes(block.type) ? block.type : 'p';
   return `<${tag}>${cleanInline(block.html,doc.notes,{published:true})}</${tag}>`;
@@ -231,7 +330,9 @@ export function renderPublishedPage(doc) {
   const title = escapeHTML(doc.title.trim());
   const subtitle = doc.subtitle.trim();
   const date = doc.publicationDate || localISODate();
-  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="utf-8"/>\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="date" content="${escapeHTML(date)}"/>\n  <meta name="notes-editor" content="1"/>\n  <meta name="notes-editor-id" content="${escapeHTML(doc.id)}"/>\n  <meta name="description" content="${escapeHTML(subtitle || doc.title)}"/>\n  <title>${title} — Notes</title>\n  <link rel="stylesheet" href="tufte.css"/>\n  <link rel="icon" type="image/png" href="favicon.png"/>\n</head>\n<body>\n  <header class="site-header" id="top"><a class="site-wordmark" href="index.html" aria-label="Notes home"><img src="favicon.png" alt=""/><span>Notes</span></a><nav class="site-links" aria-label="Related sites"><a href="https://barasch.github.io/observatory/">Observatory</a><a href="https://barasch.github.io/the-city/">The City</a><a href="https://barasch.github.io/othello/">Othello</a></nav></header>\n  <article>\n    <h1 class="page-title">${title}</h1>\n    ${subtitle ? `<p class="subtitle">${escapeHTML(subtitle)}</p>` : ''}\n    <p class="publication-date"><time datetime="${escapeHTML(date)}">${escapeHTML(formatDate(date))}</time></p>\n    ${sections.join('\n    ')}\n  </article>\n  <footer class="site-footer"><nav class="footer-links" aria-label="Footer"><a href="index.html">Notes</a><a href="#top">Top</a></nav></footer>\n</body>\n</html>\n`;
+  const twitterScript=Object.values(doc.objects).some(object=>object.type==='embed'&&object.provider==='x')
+    ? '\n  <script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>' : '';
+  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="utf-8"/>\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="date" content="${escapeHTML(date)}"/>\n  <meta name="notes-editor" content="1"/>\n  <meta name="notes-editor-id" content="${escapeHTML(doc.id)}"/>\n  <meta name="description" content="${escapeHTML(subtitle || doc.title)}"/>\n  <title>${title} — Notes</title>\n  <link rel="stylesheet" href="tufte.css"/>\n  <link rel="icon" type="image/png" href="favicon.png"/>\n</head>\n<body>\n  <header class="site-header" id="top"><a class="site-wordmark" href="index.html" aria-label="Notes home"><img src="favicon.png" alt=""/><span>Notes</span></a><nav class="site-links" aria-label="Related sites"><a href="https://barasch.github.io/observatory/">Observatory</a><a href="https://barasch.github.io/the-city/">The City</a><a href="https://barasch.github.io/othello/">Othello</a><a href="editor.html">Writer</a></nav></header>\n  <article>\n    <h1 class="page-title">${title}</h1>\n    ${subtitle ? `<p class="subtitle">${escapeHTML(subtitle)}</p>` : ''}\n    <p class="publication-date"><time datetime="${escapeHTML(date)}">${escapeHTML(formatDate(date))}</time></p>\n    ${sections.join('\n    ')}\n  </article>\n  <footer class="site-footer"><nav class="footer-links" aria-label="Footer"><a href="index.html">Notes</a><a href="#top">Top</a></nav></footer>${twitterScript}\n</body>\n</html>\n`;
 }
 
 export function localISODate() {
