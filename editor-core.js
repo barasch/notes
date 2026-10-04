@@ -13,6 +13,36 @@ export function escapeHTML(value = '') {
   return String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 }
 
+export function smartQuote(mark, before = '', after = '') {
+  if (mark !== "'" && mark !== '"') return mark;
+  before = String(before).replace(/\u200b/g, '');
+  after = String(after).replace(/\u200b/g, '');
+  const previous = before.at(-1) || '';
+  const next = after[0] || '';
+  const opening = mark === '"' ? '“' : '‘';
+  const closing = mark === '"' ? '”' : '’';
+
+  // A single mark beside a word or number is an apostrophe. The look-ahead
+  // covers an abbreviated year when text already follows the caret.
+  if (mark === "'" && (/^[\p{L}\p{N}]$/u.test(previous)
+    || (/^\d$/u.test(next) && (!previous || /^[\s([{<«‹“‘]$/u.test(previous))))) return closing;
+
+  if (!previous || /^[\s([{<«‹“‘]$/u.test(previous)) return opening;
+  if (/^[–—]$/u.test(previous)) {
+    // A dash may introduce a quotation or end an interrupted one. An
+    // unmatched smart opening mark resolves that otherwise ambiguous case.
+    return before.lastIndexOf(opening) > before.lastIndexOf(closing) ? closing : opening;
+  }
+  return closing;
+}
+
+export function smartApostrophePrefix(value = '') {
+  return String(value).replace(
+    /(^|[\s([{<«‹“])‘(?=(?:\d{2}s|t(?:is|was|were|will)|cause|em|round|til|bout)$)/iu,
+    '$1’',
+  );
+}
+
 export function safeURL(value) {
   const url = String(value || '').trim();
   if (!url || /[\u0000-\u001f\u007f]/.test(url) || url.startsWith('//')) return '';

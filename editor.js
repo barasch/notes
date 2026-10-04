@@ -1,7 +1,8 @@
 import {
   AUTH_PATH, GitHub, slugify, newNote, validateNote, cleanInline,
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
-  safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate,
+  safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
+  smartApostrophePrefix,
 } from './editor-core.js';
 
 const $ = id => document.getElementById(id);
@@ -122,6 +123,58 @@ function focusBodyEnd() {
   const selection=window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
   body.focus();
 }
+function quoteContext(target) {
+  if (/^(INPUT|TEXTAREA)$/.test(target.tagName)) {
+    const start=target.selectionStart,end=target.selectionEnd;
+    if(start==null||end==null) return null;
+    return {before:target.value.slice(0,start),after:target.value.slice(end),start,end,target};
+  }
+  const editable=target.closest?.('[contenteditable="true"]');
+  const selection=window.getSelection();
+  if(!editable||!selection.rangeCount) return null;
+  const range=selection.getRangeAt(0);
+  const inside=node=>node===editable||editable.contains(node.nodeType===1?node:node.parentNode);
+  if(!inside(range.startContainer)||!inside(range.endContainer)) return null;
+  const before=document.createRange();before.selectNodeContents(editable);before.setEnd(range.startContainer,range.startOffset);
+  const after=document.createRange();after.selectNodeContents(editable);after.setStart(range.endContainer,range.endOffset);
+  return {before:before.toString(),after:after.toString(),range,editable};
+}
+function insertSmartQuote(event) {
+  if(event.isComposing||event.inputType!=='insertText'||(event.data!=="'"&&event.data!=='"')) return false;
+  const context=quoteContext(event.target);if(!context) return false;
+  const replacement=smartQuote(event.data,context.before,context.after);
+  event.preventDefault();
+  if(document.execCommand?.('insertText',false,replacement)) return true;
+  if(context.target) {
+    context.target.setRangeText(replacement,context.start,context.end,'end');
+    context.target.dispatchEvent(new window.InputEvent('input',{bubbles:true,inputType:'insertText',data:replacement}));
+    return true;
+  }
+  const {range,editable}=context;range.deleteContents();
+  const text=document.createTextNode(replacement);range.insertNode(text);range.setStartAfter(text);range.collapse(true);
+  const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+  editable.dispatchEvent(new window.InputEvent('input',{bubbles:true,inputType:'insertText',data:replacement}));
+  return true;
+}
+function repairLeadingApostrophe(event) {
+  if(event.isComposing) return;
+  const target=event.target;
+  if(/^(INPUT|TEXTAREA)$/.test(target.tagName)) {
+    const caret=target.selectionStart;if(caret==null) return;
+    const before=target.value.slice(0,caret),fixed=smartApostrophePrefix(before);
+    if(fixed===before) return;
+    const index=[...before].findIndex((char,position)=>char!==fixed[position]);
+    if(index>=0) target.setRangeText('’',index,index+1,'preserve');
+    return;
+  }
+  const selection=window.getSelection();if(!selection.rangeCount) return;
+  const range=selection.getRangeAt(0),node=range.startContainer;
+  if(!range.collapsed||node.nodeType!==3) return;
+  const before=node.data.slice(0,range.startOffset),fixed=smartApostrophePrefix(before);
+  if(fixed===before) return;
+  const index=[...before].findIndex((char,position)=>char!==fixed[position]);
+  if(index>=0) node.replaceData(index,1,'’');
+}
 const paragraphStyles=['h2','h3','p'];
 function currentBlock() {
   const node=window.getSelection().anchorNode;
@@ -231,9 +284,10 @@ function renderNote(noteId) {
   field.setAttribute('role','textbox'); field.setAttribute('aria-label',data.type==='margin'?'Margin note':'Sidenote');
   field.setAttribute('aria-multiline','true');
   field.innerHTML=cleanInline(data.html,note.notes,{allowNotes:false});
-  field.addEventListener('input',()=>{data.html=cleanInline(field.innerHTML,note.notes,{allowNotes:false});markChanged();});
+  field.addEventListener('input',event=>{repairLeadingApostrophe(event);data.html=cleanInline(field.innerHTML,note.notes,{allowNotes:false});markChanged();});
   field.addEventListener('paste',plainTextPaste);
   field.addEventListener('beforeinput',event=>{
+    if(insertSmartQuote(event)) return;
     if(event.inputType!=='insertParagraph') return;
     event.preventDefault();
     const selection=window.getSelection();
@@ -492,6 +546,10 @@ function fieldHTML(name,label,value='',kind='text') {
   field.name=name;field.value=value;if(kind==='password')field.type='password';
   if(kind==='file') {field.type='file';field.accept='image/png,image/jpeg,image/gif,image/webp';}
   if(kind==='url') field.inputMode='url';
+  if(['text','alt','caption','source'].includes(name)) {
+    field.addEventListener('beforeinput',insertSmartQuote);
+    field.addEventListener('input',repairLeadingApostrophe);
+  }
   element.append(field);return element;
 }
 function checkbox(name,label,value=false) {
@@ -806,8 +864,10 @@ $('unlockForm').addEventListener('submit',async event=>{
 });
 $('newNote').addEventListener('click',()=>{loadNote(newNote());markChanged();$('noteTitle').focus();});
 $('dashboardLock').addEventListener('click',lock);
-$('noteTitle').addEventListener('input',event=>{resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
-$('noteSubtitle').addEventListener('input',event=>{resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
+$('noteTitle').addEventListener('input',event=>{repairLeadingApostrophe(event);resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
+$('noteSubtitle').addEventListener('input',event=>{repairLeadingApostrophe(event);resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
+$('noteTitle').addEventListener('beforeinput',insertSmartQuote);
+$('noteSubtitle').addEventListener('beforeinput',insertSmartQuote);
 $('noteTitle').addEventListener('keydown',event=>{
   if(event.key==='Enter' && !event.isComposing) {event.preventDefault();$('noteSubtitle').focus();}
 });
@@ -815,6 +875,7 @@ $('noteSubtitle').addEventListener('keydown',event=>{
   if(event.key==='Enter' && !event.isComposing) {event.preventDefault();focusHeading();}
 });
 body.addEventListener('input',event=>{
+  repairLeadingApostrophe(event);
   const caption=event.target.closest?.('[data-image-caption]');
   if(caption) {
     const id=caption.closest('[data-object-id]')?.dataset.objectId;
@@ -834,6 +895,7 @@ body.addEventListener('keydown',event=>{
 });
 // Mobile keyboards often dispatch beforeinput without a useful keydown.
 body.addEventListener('beforeinput',event=>{
+  if(insertSmartQuote(event)) return;
   if(event.inputType==='insertParagraph') advanceBlock(event);
 });
 body.addEventListener('load',event=>{if(event.target.tagName==='IMG') layoutNotes();},true);

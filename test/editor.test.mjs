@@ -5,12 +5,27 @@ import {indexedDB} from 'fake-indexeddb';
 import {
   GitHub, slugify, newNote, renderPublishedPage, updateIndex, createCredential,
   unlockCredential, recoveryPut, recoveryAll, utf8Base64, cleanInline,
+  smartQuote, smartApostrophePrefix,
 } from '../editor-core.js';
 
 const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://barasch.github.io/notes/editor.html'});
 globalThis.document=dom.window.document;
 globalThis.DOMParser=dom.window.DOMParser;
 globalThis.indexedDB=indexedDB;
+
+test('smart quotation marks follow prose context',()=>{
+  assert.equal(smartQuote('"','',''),'“');
+  assert.equal(smartQuote('"','He said ','No'),'“');
+  assert.equal(smartQuote('"','He said “No.',''),'”');
+  assert.equal(smartQuote('"','He stopped—',''),'“');
+  assert.equal(smartQuote('"','“He stopped—',''),'”');
+  assert.equal(smartQuote("'",'can','t'),'’');
+  assert.equal(smartQuote("'",'the ','90s'),'’');
+  assert.equal(smartQuote("'",'“He said, ',''),'‘');
+  assert.equal(smartApostrophePrefix('In the ‘90s'),'In the ’90s');
+  assert.equal(smartApostrophePrefix('“‘Tis'),'“’Tis');
+  assert.equal(smartApostrophePrefix('A ‘quotation'),'A ‘quotation');
+});
 
 test('slug and generated article preserve note anchors and reject pasted scripts',()=>{
   assert.equal(slugify('Memory & Identity: Notes'), 'memory-identity-notes');
