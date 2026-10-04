@@ -2,7 +2,7 @@ import {
   AUTH_PATH, GitHub, slugify, newNote, validateNote, cleanInline,
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
-  smartApostrophePrefix,
+  smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
 } from './editor-core.js';
 
 const $ = id => document.getElementById(id);
@@ -12,6 +12,26 @@ let credential = null, credentialSha = null, key = null, token = null;
 let github = new GitHub(), note = null, revision = 0, localRevision = -1;
 let saveTimer = null, continuousTimer = null, overdueTimer = null, localWrite = null;
 let selectedRange = null, selectedEditable = body, dialogContext = null, busy = false;
+const mediaQuery=(query,fallback)=>window.matchMedia?.(query)||{get matches(){return fallback();}};
+const wideNotes=mediaQuery('(min-width: 1051px)',()=>window.innerWidth>1050);
+const compactMenus=mediaQuery('(max-width: 600px)',()=>window.innerWidth<=600);
+const themeKey='notes-writer-theme';
+let selectedTheme='system';
+
+function applyTheme(value) {
+  selectedTheme=['light','dark'].includes(value)?value:'system';
+  document.documentElement.dataset.theme=selectedTheme;
+  try {
+    if(selectedTheme==='system') localStorage.removeItem(themeKey);
+    else localStorage.setItem(themeKey,selectedTheme);
+  } catch { /* Theme persistence is optional when browser storage is unavailable. */ }
+  for(const button of document.querySelectorAll('[data-theme]')) {
+    const active=button.dataset.theme===selectedTheme;
+    button.setAttribute('aria-checked',String(active));button.classList.toggle('selected',active);
+  }
+}
+try {selectedTheme=localStorage.getItem(themeKey)||'system';} catch { /* Use system appearance. */ }
+applyTheme(selectedTheme);
 
 function resizeHeadingField(field) {
   field.style.height='auto';
@@ -46,6 +66,11 @@ function githubStamp() {
     ? `Draft saved to GitHub: ${new Date(note.remoteSavedAt).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}`
     : 'Not yet saved to GitHub';
   updateCollapsedHeader();
+  updateNoteCommands();
+}
+function updateNoteCommands() {
+  if(!$('menuRevert')) return;
+  $('menuRevert').disabled=!note?.slug||!note?.remoteSha||busy;
 }
 function updateCollapsedHeader() {
   const collapsed=$('collapsedNote');
@@ -310,6 +335,7 @@ function layoutNotes() {
   for(const marker of markers) {
     const id=marker.dataset.noteId, data=note.notes[id]; if(!data) continue;
     marker.textContent=data.type==='margin'?'⊕':String(++sidenoteNumber);
+    if(!wideNotes.matches) continue;
     let aside=old.get(id); old.delete(id);
     if(!aside) {aside=renderNote(id);rail.append(aside);}
     const sectionTop=$('editorSection').getBoundingClientRect().top;
@@ -318,11 +344,11 @@ function layoutNotes() {
     lowerEdge=Math.max(preferred,lowerEdge)+aside.getBoundingClientRect().height+14;
   }
   for(const stale of old.values()) stale.remove();
-  $('editorSection').style.minHeight=`${Math.max(body.offsetHeight,lowerEdge+24)}px`;
+  $('editorSection').style.minHeight=wideNotes.matches?`${Math.max(body.offsetHeight,lowerEdge+24)}px`:'';
 }
 function openNote(noteId) {
   const noteField=$('noteRail').querySelector(`[data-note-id="${CSS.escape(noteId)}"] .note-text`);
-  if(window.innerWidth>760 && noteField) {noteField.focus();return;}
+  if(wideNotes.matches && noteField) {noteField.focus();return;}
   openDialog('note',noteId);
 }
 function loadNote(next,locallySaved=false) {
@@ -334,15 +360,20 @@ function loadNote(next,locallySaved=false) {
   $('noteRail').replaceChildren();
   view('workspace');
   githubStamp(); refreshBody(); localState(locallySaved?'ok':'pending'); warning();
-  document.title=`${note.title || 'New note'} — Write`;
+  document.title=`${note.title || 'New note'} — Writer`;
   const query=note.slug?`?draft=${encodeURIComponent(note.slug)}`:`?local=${encodeURIComponent(note.id)}`;
   history.replaceState(null,'',`editor.html${query}`);
   requestAnimationFrame(()=>{resizeHeadingField($('noteTitle'));resizeHeadingField($('noteSubtitle'));layoutNotes();});
   if(!locallySaved) saveLocal();
 }
+function stateForCopies(localDocument,remoteDocument) {
+  if(sameDraftContent(localDocument,remoteDocument)) return 'saved';
+  return (localDocument.remoteSha||null)===(remoteDocument.remoteSha||null)?'unsaved':'conflict';
+}
 async function showDashboard() {
   if(note) await flushLocal();
   view('dashboardView'); note=null;
+  document.title='Writer';
   history.replaceState(null,'','editor.html');
   const list=$('draftList'); list.textContent='Loading drafts…';
   try {
@@ -350,13 +381,13 @@ async function showDashboard() {
     const entries=[];
     for(const file of files) {
       const slug=file.name.slice(0,-5);
-      entries.push({kind:'github',slug,title:slug.replace(/-/g,' '),remoteSha:file.sha||null});
+      entries.push({kind:'saved',slug,title:slug.replace(/-/g,' '),remoteSha:file.sha||null});
     }
     await Promise.all(entries.map(async entry=>{
       try {
         const source=await github.file(`drafts/${entry.slug}.json`,'drafts');
         const draft=validateNote(JSON.parse(source.text));
-        draft.remoteSha=source.sha;entry.document=draft;entry.remoteSha=source.sha;
+        draft.remoteSha=source.sha;entry.document=draft;entry.remoteDocument=draft;entry.remoteSha=source.sha;
         entry.savedTitle=draft.savedTitle||draft.title;
         entry.title=draft.title||entry.title;
         entry.updatedAt=Date.parse(draft.remoteSavedAt||'')||0;
@@ -372,10 +403,12 @@ async function showDashboard() {
       const remote=record.document.slug&&entries.find(entry=>entry.slug===record.document.slug);
       if(remote) {
         if(!record.document.savedTitle&&remote.savedTitle) record.document.savedTitle=remote.savedTitle;
-        remote.document=record.document;remote.title=record.document.title||remote.title;
-        remote.updatedAt=record.savedAt;remote.createdAt=Number(record.document.createdAt)||remote.createdAt||record.savedAt;
-        remote.kind='recovered';
-      } else entries.push({kind:'local',document:record.document,slug:record.document.slug,title:record.document.title||'Untitled note',createdAt:Number(record.document.createdAt)||Number(record.document.updatedAt)||record.savedAt,updatedAt:record.savedAt});
+        remote.kind=remote.remoteDocument?stateForCopies(record.document,remote.remoteDocument):'conflict';
+        remote.document=remote.kind==='saved'?remote.remoteDocument:record.document;
+        remote.locallySaved=true;remote.title=remote.document.title||remote.title;
+        if(remote.kind!=='saved') remote.updatedAt=record.savedAt;
+        remote.createdAt=Number(record.document.createdAt)||remote.createdAt||record.savedAt;
+      } else entries.push({kind:'browser',locallySaved:true,document:record.document,slug:record.document.slug,title:record.document.title||'Untitled note',createdAt:Number(record.document.createdAt)||Number(record.document.updatedAt)||record.savedAt,updatedAt:record.savedAt});
     }
     list.replaceChildren();
     if(!entries.length) {const p=document.createElement('p');p.textContent='No drafts yet.';list.append(p);}
@@ -385,17 +418,15 @@ async function showDashboard() {
       const button=document.createElement('button'); button.type='button'; button.className='draft-title';button.textContent=entry.title;
       button.addEventListener('click',()=>openDraft(entry));
       const meta=document.createElement('div');meta.className='draft-meta';
-      const side=document.createElement('span');side.className='draft-kind';side.textContent={local:'Local recovery',recovered:'Local recovery over GitHub draft',github:'GitHub draft'}[entry.kind];
+      const side=document.createElement('span');side.className='draft-kind';side.textContent={saved:'Saved on GitHub',unsaved:'Unsaved browser changes',browser:'Browser-only draft',conflict:'Browser and GitHub versions conflict'}[entry.kind];
       const filename=document.createElement('span');filename.className='draft-filename';filename.textContent=`Filename ${entry.slug||'not yet assigned'}`;
       const created=document.createElement('span');created.className='draft-created';created.textContent=`Created ${formatDraftTime(entry.createdAt)}`;
       const saved=document.createElement('span');saved.className='draft-saved';saved.textContent=`Last saved ${formatDraftTime(entry.updatedAt)}`;
       meta.append(side,filename,created,saved);
       const actions=document.createElement('div');actions.className='draft-actions';
-      const saveAs=document.createElement('button');saveAs.type='button';saveAs.className='save-as';saveAs.textContent='Save as';
-      saveAs.addEventListener('click',()=>openDialog('save-as',null,{entry}));
       const remove=document.createElement('button');remove.type='button';remove.className='delete-draft';remove.textContent='Delete';
       remove.addEventListener('click',()=>openDialog('delete-draft',null,{entry}));
-      actions.append(saveAs,remove);row.append(button,meta,actions);list.append(row);
+      actions.append(remove);row.append(button,meta,actions);list.append(row);
     }
   } catch(error) {list.textContent=`Could not load drafts: ${error.message}`;}
 }
@@ -438,7 +469,8 @@ async function ensureCreatedAt(document) {
 async function openDraft(entry) {
   try {
     const loaded=await entryDocument(entry);
-    loadNote(loaded,entry.kind!=='github');
+    loadNote(loaded,Boolean(entry.locallySaved));
+    if(entry.kind==='conflict') warning('The browser and GitHub versions both changed. Your browser copy is open and has not been overwritten. Use Revert only if you want the latest GitHub version.');
   } catch(error) {notice(`Could not open draft: ${error.message}`,true);}
 }
 async function resumeRequested() {
@@ -447,12 +479,19 @@ async function resumeRequested() {
   const localId=params.get('local'), slug=params.get('draft');
   const saved=records.find(record=>record.document.id===localId || (slug&&record.document.slug===slug));
   if(saved) {
-    if(saved.document.slug&&saved.document.remoteSha&&!saved.document.savedTitle) {
+    let remoteDocument=null;
+    if(saved.document.slug) {
       const remote=await github.file(`drafts/${saved.document.slug}.json`,'drafts').catch(()=>null);
-      if(remote) {
-        try {saved.document.savedTitle=validateNote(JSON.parse(remote.text)).title.trim();}
-        catch { /* Retain the local draft even if the remote file is damaged. */ }
-      }
+      if(remote) try {
+        remoteDocument=validateNote(JSON.parse(remote.text));remoteDocument.remoteSha=remote.sha;
+        if(!saved.document.savedTitle) saved.document.savedTitle=remoteDocument.title.trim();
+      } catch { /* Retain the local draft even if the remote file is damaged. */ }
+    }
+    if(remoteDocument) {
+      const state=stateForCopies(saved.document,remoteDocument);
+      loadNote(state==='saved'?remoteDocument:saved.document,true);
+      if(state==='conflict') warning('The browser and GitHub versions both changed. Your browser copy is open and has not been overwritten. Use Revert only if you want the latest GitHub version.');
+      return;
     }
     loadNote(saved.document,true);return;
   }
@@ -567,12 +606,19 @@ function radioGroup(name,label,options,value) {
   }
   return fieldset;
 }
+function editableEmbedCode(object) {
+  if(!object) return '';
+  if(object.provider==='x') return `${object.html}\n<script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>`;
+  const allow=object.allow?` allow="${object.allow}"`:'';
+  const fullscreen=object.allowFullscreen?' allowfullscreen':'';
+  return `<iframe src="${object.src}" title="${object.title||'Embedded media'}"${allow}${fullscreen}></iframe>`;
+}
 function openDialog(type,id=null,context={}) {
   retainRange();
   const object=type==='note'?note.notes[id]:id?note.objects[id]:null;
   dialogContext={type,id,...context};
   const fields=$('dialogFields');fields.replaceChildren();
-  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',note:'Edit note',token:'Replace GitHub token','save-as':'Save draft as','delete-draft':'Delete draft'}[type];
+  const heading={address:'Note address',link:'Link',image:'Image',quote:'Pull quote',table:'Table',embed:'Embed',note:'Edit note',token:'Replace GitHub token','save-as':'Save as',revert:'Revert to GitHub draft','delete-draft':'Delete draft'}[type];
   $('dialogTitle').textContent=heading;
   $('deleteObject').hidden=!id||type==='note';
   const submit=$('contentForm').querySelector('[type=submit]');submit.disabled=false;submit.textContent=id?'Save':'Insert';submit.classList.toggle('danger-button',type==='delete-draft');
@@ -600,10 +646,13 @@ function openDialog(type,id=null,context={}) {
       radioGroup('captionPlacement','Caption placement',[['below','Below image'],['side','To the side']],object?.captionPlacement==='side'?'side':'below'),
     );
   } else if(type==='quote') {
-    fields.append(fieldHTML('text','Quotation',object?.text||'','textarea'),fieldHTML('source','Source (optional)',object?.source||''));
+    fields.append(fieldHTML('text','Quotation',object?.text||'','textarea'),fieldHTML('source','Source (optional)',object?.source||''),fieldHTML('sourceUrl','Source link (optional)',object?.sourceUrl||'','url'));
   } else if(type==='table') {
     const hint=document.createElement('p');hint.textContent='Paste tab-separated cells. The first row contains column headings.';
     fields.append(hint,fieldHTML('tsv','Cells',object?.tsv||'','textarea'),fieldHTML('caption','Caption',object?.caption||''),checkbox('fullwidth','Full width',object?.fullwidth));
+  } else if(type==='embed') {
+    const hint=document.createElement('p');hint.textContent='Paste an X post embed or one HTTPS iframe. Scripts never run in Writer; supported embeds activate only on the published note.';
+    fields.append(hint,fieldHTML('code','Embed code',editableEmbedCode(object),'textarea'),checkbox('fullwidth','Full width',object?.fullwidth));
   } else if(type==='note') {
     const div=document.createElement('div');div.innerHTML=object.html;
     fields.append(fieldHTML('text',object.type==='margin'?'Margin note':'Sidenote',div.textContent,'textarea'));
@@ -611,9 +660,12 @@ function openDialog(type,id=null,context={}) {
     fields.append(fieldHTML('token','New fine-grained GitHub token','','password'));
     $('contentForm').querySelector('[type=submit]').textContent='Replace token';
   } else if(type==='save-as') {
-    const source=context.entry?.slug||slugify(context.entry?.title||'draft');
+    const source=context.document?.slug||slugify(context.document?.title||'draft')||'draft';
     fields.append(fieldHTML('slug','Filename / future public address (without .html)',`${source}-copy`));
     $('contentForm').querySelector('[type=submit]').textContent='Create copy';
+  } else if(type==='revert') {
+    const warning=document.createElement('p');warning.textContent='Replace this browser copy with the latest draft from GitHub? Unsaved browser changes will be discarded.';
+    fields.append(warning);$('contentForm').querySelector('[type=submit]').textContent='Revert';
   } else if(type==='delete-draft') {
     const warning=document.createElement('p');warning.textContent=`Permanently delete “${context.entry?.title||'Untitled note'}”? This cannot be undone. Any published page is unaffected.`;
     fields.append(warning);$('contentForm').querySelector('[type=submit]').textContent='Delete permanently';
@@ -634,9 +686,15 @@ async function applyDialog(event) {
       for(const record of records) if(record.document.id===entry.document?.id || (entry.slug&&record.document.slug===entry.slug)) await recoveryDelete(record.id);
       $('contentDialog').close();notice('Draft permanently deleted.');await showDashboard();return;
     }
+    if(type==='revert') {
+      const {remote,localId}=dialogContext;
+      if(localId) await recoveryDelete(localId);
+      $('contentDialog').close();loadNote(validateNote(structuredClone(remote)));
+      notice('Reverted to the latest GitHub draft.');return;
+    }
     if(type==='save-as') {
       const submit=form.querySelector('[type=submit]');submit.disabled=true;
-      const source=await entryDocument(dialogContext.entry);
+      const source=validateNote(structuredClone(dialogContext.document));
       const requested=String(data.get('slug')).trim(),slug=await availableSlug(requested);
       const copy=independentCopy(source,slug);
       await github.saveDraft(copy);
@@ -704,11 +762,17 @@ async function applyDialog(event) {
       const object={type:'image',data:imageData,external,alt:String(data.get('alt')).trim(),captionHTML:prior?.captionHTML??escapeLegacyCaption(prior?.caption),fullwidth:data.has('fullwidth'),captionPlacement:data.get('captionPlacement')==='side'?'side':'below'};
       if(id) updateObject(id,object); else insertObject(object);
     }
-    if(type==='quote' || type==='table') {
+    if(type==='quote' || type==='table' || type==='embed') {
+      const requestedSourceUrl=String(data.get('sourceUrl')||'').trim();
+      const sourceUrl=requestedSourceUrl?safeURL(requestedSourceUrl):'';
+      if(requestedSourceUrl&&!sourceUrl) throw new Error('Use an http(s), mailto, or relative note address for the source link.');
       const object=type==='quote'
-        ? {type:'quote',text:String(data.get('text')).trim(),source:String(data.get('source')).trim()}
-        : {type:'table',tsv:String(data.get('tsv')).replace(/\r?\n+$/,''),caption:String(data.get('caption')).trim(),fullwidth:data.has('fullwidth')};
-      if(!(object.text||object.tsv.trim())) throw new Error('Add some content first.');
+        ? {type:'quote',text:String(data.get('text')).trim(),source:String(data.get('source')).trim(),sourceUrl}
+        : type==='table'
+          ? {type:'table',tsv:String(data.get('tsv')).replace(/\r?\n+$/,''),caption:String(data.get('caption')).trim(),fullwidth:data.has('fullwidth')}
+          : normalizeEmbedCode(data.get('code'),{fullwidth:data.has('fullwidth')});
+      if(type==='quote'&&!object.text) throw new Error('Add some content first.');
+      if(type==='table'&&!object.tsv.trim()) throw new Error('Add some content first.');
       if(type==='table') tableHTML(object);
       if(id) updateObject(id,object); else insertObject(object);
     }
@@ -733,7 +797,7 @@ function updateObject(id,object) {
 async function remoteAction(task) {
   if(busy) return;
   busy=true;
-  $('menuSaveDraft').disabled=$('menuPublish').disabled=true;
+  $('menuSaveDraft').disabled=$('menuSaveAs').disabled=$('menuRevert').disabled=$('menuPublish').disabled=true;
   const initialSha=note?.remoteSha;
   const controls=$('workspace').querySelector('.floating-tools');
   controls.style.pointerEvents='none';body.contentEditable='false';
@@ -755,7 +819,7 @@ async function remoteAction(task) {
     controls.style.pointerEvents='';body.contentEditable='true';
     $('noteTitle').disabled=$('noteSubtitle').disabled=false;
     $('noteRail').style.pointerEvents='';
-    busy=false;$('menuSaveDraft').disabled=$('menuPublish').disabled=false;
+    busy=false;$('menuSaveDraft').disabled=$('menuSaveAs').disabled=$('menuPublish').disabled=false;updateNoteCommands();
   }
 }
 async function writeDraft() {
@@ -798,6 +862,26 @@ async function chooseAddress(intent='save') {
   } catch(error) {notice(`Could not check the address: ${error.message}`,true);return false;}
 }
 async function saveDraft() {if(await chooseAddress()) await writeDraft();}
+async function saveAs() {
+  try {
+    await flushLocal();
+    openDialog('save-as',null,{document:localSnapshot()});
+  } catch(error) {notice(error.message,true);}
+}
+async function revertDraft() {
+  if(!note?.slug||!note?.remoteSha) return;
+  try {
+    await flushLocal();
+    const local=localSnapshot();
+    const file=await github.file(`drafts/${note.slug}.json`,'drafts');
+    if(!file) throw new Error('This draft no longer exists on GitHub. Your browser copy is unchanged.');
+    const remote=validateNote(JSON.parse(file.text));remote.remoteSha=file.sha;
+    if(sameDraftContent(local,remote)) {
+      loadNote(remote);notice('The browser copy already matches the latest GitHub draft.');return;
+    }
+    openDialog('revert',null,{remote,localId:local.id});
+  } catch(error) {notice(`Could not revert: ${error.message}`,true);}
+}
 async function publish() {
   if(!await chooseAddress('publish')) return;
   await remoteAction(async()=>{
@@ -932,7 +1016,11 @@ function applyInlineFormat(command) {
   retainRange();
 }
 document.addEventListener('keydown',event=>{
-  if(event.key==='Escape' && !$('commandMenu').hidden) {event.preventDefault();closeCommandMenu();return;}
+  if(event.key==='Escape' && (!$('commandMenu').hidden||!$('insertMenu').hidden)) {
+    event.preventDefault();
+    if(!$('insertMenu').hidden) closeInsertMenu(); else closeCommandMenu();
+    return;
+  }
   const modifier=(event.metaKey||event.ctrlKey)&&!event.altKey;
   if(!modifier || event.isComposing) return;
   const keyName=event.key.toLowerCase();
@@ -952,7 +1040,21 @@ document.addEventListener('keydown',event=>{
 });
 function closeCommandMenu() {
   $('commandMenu').hidden=true;
+  $('insertMenu').hidden=true;
+  $('openInsertMenu').setAttribute('aria-expanded','false');
   $('menuButton').setAttribute('aria-expanded','false');
+}
+function openInsertMenu() {
+  $('insertMenu').hidden=false;
+  $('openInsertMenu').setAttribute('aria-expanded','true');
+  if(compactMenus.matches) $('commandMenu').hidden=true;
+  $('insertMenu').querySelector('button')?.focus();
+}
+function closeInsertMenu() {
+  $('insertMenu').hidden=true;
+  $('openInsertMenu').setAttribute('aria-expanded','false');
+  if(compactMenus.matches) $('commandMenu').hidden=false;
+  $('openInsertMenu').focus();
 }
 
 async function toggleFocus() {
@@ -969,10 +1071,12 @@ async function toggleFocus() {
 $('menuButton').addEventListener('pointerdown',retainRange);
 $('menuButton').addEventListener('click',()=>{
   const menu=$('commandMenu');
-  menu.hidden=!menu.hidden;
-  $('menuButton').setAttribute('aria-expanded',String(!menu.hidden));
+  if(!menu.hidden||!$('insertMenu').hidden) closeCommandMenu();
+  else {menu.hidden=false;$('menuButton').setAttribute('aria-expanded','true');}
 });
-$('commandMenu').addEventListener('click',event=>{
+function handleCommandClick(event) {
+  const theme=event.target.closest('button[data-theme]');
+  if(theme) {applyTheme(theme.dataset.theme);return;}
   const insert=event.target.closest('[data-insert]');
   if(insert) {
     closeCommandMenu();
@@ -982,14 +1086,21 @@ $('commandMenu').addEventListener('click',event=>{
   }
   const command=event.target.closest('[data-command]');
   if(!command) return;
+  if(command.dataset.command==='insert-menu') {openInsertMenu();return;}
+  if(command.dataset.command==='insert-back') {closeInsertMenu();return;}
   closeCommandMenu();
   if(command.dataset.command==='drafts') showDashboard().catch(error=>notice(error.message,true));
-  if(command.dataset.command==='save') saveDraft();
-  if(command.dataset.command==='publish') publish();
-  if(command.dataset.command==='focus') toggleFocus();
+  if(command.dataset.command==='save') saveDraft().catch(error=>notice(error.message,true));
+  if(command.dataset.command==='save-as') saveAs().catch(error=>notice(error.message,true));
+  if(command.dataset.command==='revert') revertDraft().catch(error=>notice(error.message,true));
+  if(command.dataset.command==='publish') publish().catch(error=>notice(error.message,true));
+  if(command.dataset.command==='focus') toggleFocus().catch(error=>notice(error.message,true));
   if(command.dataset.command==='replace-token') openDialog('token');
   if(command.dataset.command==='lock') lock();
-});
+}
+for(const button of document.querySelectorAll('#commandMenu button, #insertMenu button')) {
+  button.addEventListener('click',handleCommandClick);
+}
 document.addEventListener('click',event=>{
   if(!event.target.closest('.command-holder')) closeCommandMenu();
 });

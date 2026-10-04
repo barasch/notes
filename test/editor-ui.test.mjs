@@ -48,6 +48,7 @@ globalThis.indexedDB=indexedDB;
 
 function page(url) {
   const dom=new JSDOM(source,{url,pretendToBeVisual:true});
+  Object.defineProperty(dom.window,'innerWidth',{value:1280,writable:true,configurable:true});
   dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
   dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
   for(const name of ['window','document','history','location','DOMParser','File','FileReader','FormData']) globalThis[name]=dom.window[name];
@@ -58,7 +59,11 @@ function page(url) {
 async function until(predicate,timeout=3500) {
   const start=Date.now();
   while(!predicate()) {
-    if(Date.now()-start>timeout) throw new Error('Timed out waiting for editor state');
+    if(Date.now()-start>timeout) {
+      const toast=document.getElementById('toast')?.textContent;
+      const warning=document.getElementById('warning')?.textContent;
+      throw new Error(`Timed out waiting for editor state${toast?`; toast: ${toast}`:''}${warning?`; warning: ${warning}`:''}`);
+    }
     await new Promise(resolve=>setTimeout(resolve,25));
   }
 }
@@ -107,15 +112,41 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('workspace').hidden);
   assert.equal(document.querySelectorAll('.toolbar-tools > button').length,0,'workspace commands are inside the menu');
-  assert.equal(document.querySelectorAll('#commandMenu [data-insert]').length,6);
+  assert.equal(document.querySelectorAll('#insertMenu [data-insert]').length,7);
   assert.deepEqual(
     [...document.querySelectorAll('#commandMenu [data-command]')].map(button=>button.dataset.command),
-    ['drafts','save','publish','focus','replace-token','lock'],
+    ['replace-token','lock','drafts','save','save-as','revert','publish','insert-menu','focus'],
   );
+  assert.equal(document.querySelector('#workspace .site-wordmark span').textContent,'Writer');
+  document.querySelector('[data-theme=dark]').click();
+  assert.equal(document.documentElement.dataset.theme,'dark');
+  assert.equal(document.querySelector('[data-theme=dark]').getAttribute('aria-checked'),'true');
+  document.querySelector('[data-theme=system]').click();
+  document.getElementById('menuButton').click();document.getElementById('openInsertMenu').click();
+  assert.equal(document.getElementById('insertMenu').hidden,false);
+  assert.equal(document.getElementById('openInsertMenu').getAttribute('aria-expanded'),'true');
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  assert.equal(document.getElementById('insertMenu').hidden,true);
+  document.getElementById('menuButton').click();
   assert.equal(document.getElementById('noteTitle').value,'A recovered note');
   assert.match(document.getElementById('editorBody').textContent,/saved only in this browser/);
   assert.equal(document.getElementById('remoteStamp').textContent,remoteTime);
   assert.equal(githubWrites,2);
+
+  document.getElementById('menuButton').click();
+  document.querySelector('[data-command=drafts]').click();
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  assert.equal(document.querySelector('.draft-kind').textContent,'Unsaved browser changes');
+  assert.doesNotMatch(document.getElementById('draftList').textContent,/Local recovery over/i);
+  document.querySelector('.draft-title').click();
+  await until(()=>!document.getElementById('workspace').hidden);
+  assert.equal(document.getElementById('menuRevert').disabled,false);
+  document.getElementById('menuButton').click();document.getElementById('menuRevert').click();
+  await until(()=>document.getElementById('contentDialog').open);
+  assert.match(document.getElementById('dialogFields').textContent,/discarded/i);
+  document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>/survives a reload/.test(document.getElementById('editorBody').textContent));
+  assert.doesNotMatch(document.getElementById('editorBody').textContent,/saved only in this browser/);
 
   const editorBody=document.getElementById('editorBody');
   const selectEnd=()=>{
@@ -305,10 +336,8 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   const originalId=JSON.parse(original).id;
 
   document.getElementById('menuButton').click();
-  document.querySelector('[data-command=drafts]').click();
-  await until(()=>!document.getElementById('dashboardView').hidden);
-  const originalRow=[...document.querySelectorAll('.draft-row')].find(row=>row.querySelector('.draft-title')?.textContent==='Original title');
-  assert.ok(originalRow);originalRow.querySelector('.save-as').click();
+  document.querySelector('[data-command=save-as]').click();
+  await until(()=>document.querySelector('#dialogFields [name=slug]'));
   const newFilename=document.querySelector('#dialogFields [name=slug]');newFilename.value='working-file';
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('workspace').hidden && location.search.includes('working-file'));
@@ -318,6 +347,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   assert.equal(copy.title,'Original title','Save as changes the filename, not the displayed title');
   assert.equal(copy.publicationDate,'');
   assert.ok(Number(copy.createdAt),'the copy records its creation time');
+  assert.equal(document.querySelector('.draft-row .save-as'),null,'Save as belongs to the editor, not the drafts list');
 
   title.value='Independent copy';title.dispatchEvent(new window.Event('input',{bubbles:true}));
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
@@ -405,7 +435,7 @@ test('external images have directly editable rich captions and side captions sta
   assert.equal(image.external,true);
   assert.match(image.captionHTML,/<em>documentary<\/em>/);
   assert.match(renderPublishedPage({...recovered,slug:'image-note'}),/figure class="caption-side"[\s\S]*<figcaption>A <em>documentary<\/em> image with <a href="https:\/\/example.org\/source">source<\/a>\.<\/figcaption>/);
-  assert.match(tufteCSS,/@media \(max-width: 760px\)[\s\S]*figure\.caption-side \{[\s\S]*display: block;/);
+  assert.match(tufteCSS,/@media \(max-width: 1050px\)[\s\S]*figure\.caption-side \{[\s\S]*display: block;/);
   assert.match(editorCSS,/\.toast \{[^}]*top: calc\(61px \+ \.75rem\);[^}]*left: 50%;[^}]*translateX\(-50%\)/);
   dom.window.close();
 });
