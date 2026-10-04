@@ -5,7 +5,7 @@ import {indexedDB} from 'fake-indexeddb';
 import {
   GitHub, slugify, newNote, renderPublishedPage, updateIndex, createCredential,
   unlockCredential, recoveryPut, recoveryAll, utf8Base64, cleanInline,
-  smartQuote, smartApostrophePrefix,
+  smartQuote, smartApostrophePrefix, normalizeEmbedCode, sameDraftContent,
 } from '../editor-core.js';
 
 const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://barasch.github.io/notes/editor.html'});
@@ -66,6 +66,36 @@ test('tables, images, and index entries publish as semantic HTML without duplica
   const once=updateIndex(template,note),twice=updateIndex(once,note);
   assert.equal((twice.match(/data-note-slug="numbers"/g)||[]).length,1);
   assert.match(twice,/href="numbers.html"/);
+});
+
+test('pull-quote sources and supported embeds publish safely',()=>{
+  const xCode='<blockquote class="twitter-tweet"><p lang="en" dir="ltr" onclick="alert(1)">A quoted <strong>post</strong>.</p>&mdash; Writer <a href="https://x.com/example/status/1">October 4, 2026</a></blockquote><script async src="https://platform.x.com/widgets.js" charset="utf-8"></script>';
+  const xEmbed=normalizeEmbedCode(xCode);
+  assert.equal(xEmbed.provider,'x');
+  assert.doesNotMatch(xEmbed.html,/script|onclick/);
+  const iframe=normalizeEmbedCode('<iframe src="https://player.example.org/video/1" title="A video" width="1600" height="900" allow="fullscreen" allowfullscreen></iframe>',{fullwidth:true});
+  assert.equal(iframe.provider,'iframe');assert.equal(iframe.aspectRatio,1600/900);assert.equal(iframe.fullwidth,true);
+  assert.throws(()=>normalizeEmbedCode('<script src="https://unknown.example/widget.js"></script>'),/not supported/);
+  assert.throws(()=>normalizeEmbedCode('<iframe src="http://example.org/video"></iframe>'),/HTTPS/);
+
+  const note=newNote();note.slug='sources';note.title='Sources';
+  note.objects.quote={type:'quote',text:'A quotation.',source:'Original source',sourceUrl:'https://example.org/source'};
+  note.objects.x=xEmbed;note.objects.video=iframe;
+  note.blocks=[{type:'object',id:'quote'},{type:'object',id:'x'},{type:'object',id:'video'}];
+  const page=renderPublishedPage(note);
+  assert.match(page,/<cite><a href="https:\/\/example\.org\/source">Original source<\/a><\/cite>/);
+  assert.equal((page.match(/platform\.x\.com\/widgets\.js/g)||[]).length,1,'the X widget script is loaded once');
+  assert.doesNotMatch(page,/onclick/);
+  assert.match(page,/<iframe src="https:\/\/player\.example\.org\/video\/1"[^>]*allowfullscreen>/);
+  assert.match(page,/href="editor\.html">Writer<\/a>/);
+});
+
+test('draft comparison ignores save metadata but detects authored changes',()=>{
+  const remote=newNote();remote.slug='comparison';remote.title='A note';remote.remoteSha='sha-2';remote.updatedAt=20;
+  const local=structuredClone(remote);local.remoteSha='sha-1';local.updatedAt=30;local.remoteSavedAt='later';
+  assert.equal(sameDraftContent(local,remote),true);
+  local.blocks=[{type:'p',html:'A browser-only edit.'}];
+  assert.equal(sameDraftContent(local,remote),false);
 });
 
 test('credential and local recovery are encrypted with the passphrase',async()=>{
