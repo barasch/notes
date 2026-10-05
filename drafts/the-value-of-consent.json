@@ -24,7 +24,7 @@
     },
     {
       "type": "p",
-      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody moral battleground precisely because it is indifferent to morality as such. G. K. Chesterton made a similar observation about religion in his critical study of Dickens: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Economics is intensely moral because it treats human purposes as irreducible data. Silent as to what we ought ultimately to value, economics keeps returning us to the question of whose decision will govern."
+      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody moral battleground precisely because it is indifferent to morality as such. An observation of a similar form, made by G. K. Chesterton about religion in his critical study of Dickens, may prove illuminating: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Chesterton observed that, because there are no shortcuts toward piety to be discovered by the intellect, devotion frees intelligence of the charge to direct the mind and allows it to fully enrich the journey of the soul. A similar inversion distinguishes economics: the field has intense moral urgency because it treats human purposes as irreducible data. There are no moral shortcuts that can bring us toward sound economic understanding of our world. Because the field is silent as to what we ought ultimately to value, economics returns everyone across the realms of human activity to the question of whose decision has force."
     },
     {
       "type": "p",
@@ -33,6 +33,10 @@
     {
       "type": "p",
       "html": "Another evocative device Williams employed was a representative individual American tax burden expressed as the fraction of a working year for which the individual was effectively uncompensated. Starting on January 1, Williams calculated that the end of the hypothetical indenture would fall on different dates in May or June as rates varied over the years."
+    },
+    {
+      "type": "p",
+      "html": "<br>"
     }
   ],
   "notes": {
@@ -44,27 +48,31 @@
   "objects": {
     "67193fbc-0e5f-48b3-ad99-6deee7510198": {
       "type": "quote",
-      "text": "\". . . there is nothing / Either good or bad, but thinking makes it so . . .\"",
-      "source": "William Shakespeare, Hamlet (1601)"
+      "text": ". . . there is nothing\nEither good or bad, but thinking makes it so . . .",
+      "source": "William Shakespeare, Hamlet (1601)",
+      "sourceUrl": ""
     },
     "5a9b6c8f-da0c-4ec7-b007-6b84bb4f97ac": {
       "type": "quote",
-      "text": "\"It is always the individual who thinks. Society does not think any more than it eats or drinks.\"",
-      "source": ""
+      "text": "It is always the individual who thinks. Society does not think any more than it eats or drinks.",
+      "source": "",
+      "sourceUrl": ""
     },
     "4a803138-3787-4594-b1cb-e594c456054a": {
       "type": "quote",
-      "text": "\"It is always single individuals who say We; even if they say it in chorus, it yet remains an utterance of single individuals.\"",
-      "source": "Ludwig von Mises, Human Action (1949)"
+      "text": "It is always single individuals who say We; even if they say it in chorus, it yet remains an utterance of single individuals.",
+      "source": "Ludwig von Mises, Human Action (1949)",
+      "sourceUrl": ""
     },
     "b4aecebd-92f8-4b93-8f2a-dc93589c9693": {
       "type": "quote",
-      "text": "\" . . . words of so sweet breath composed / As made the things more rich. Their perfume lost, / Take these again, for to the noble mind / Rich gifts wax poor when givers prove unkind.\"",
-      "source": ""
+      "text": ". . . words of so sweet breath composed\nAs made the things more rich. Their perfume lost,\nTake these again, for to the noble mind\nRich gifts wax poor when givers prove unkind.",
+      "source": "",
+      "sourceUrl": ""
     }
   },
   "createdAt": 1790608492824,
-  "updatedAt": 1790645215388,
-  "remoteSavedAt": "2026-09-29T01:26:56.076Z",
+  "updatedAt": 1791218424169,
+  "remoteSavedAt": "2026-10-05T16:40:24.846Z",
   "savedTitle": "The Value of Consent"
 }
