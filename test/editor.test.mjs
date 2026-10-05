@@ -5,7 +5,7 @@ import {indexedDB} from 'fake-indexeddb';
 import {
   GitHub, slugify, newNote, renderPublishedPage, updateIndex, createCredential,
   unlockCredential, recoveryPut, recoveryAll, utf8Base64, cleanInline,
-  smartQuote, smartApostrophePrefix, normalizeEmbedCode, sameDraftContent,
+  smartQuote, smartApostrophePrefix, normalizeEmbedCode, sameDraftContent, editorBlockHTML,
 } from '../editor-core.js';
 
 const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://barasch.github.io/notes/editor.html'});
@@ -79,10 +79,12 @@ test('pull-quote sources and supported embeds publish safely',()=>{
   assert.throws(()=>normalizeEmbedCode('<iframe src="http://example.org/video"></iframe>'),/HTTPS/);
 
   const note=newNote();note.slug='sources';note.title='Sources';
-  note.objects.quote={type:'quote',text:'A quotation.',source:'Original source',sourceUrl:'https://example.org/source'};
+  note.objects.quote={type:'quote',text:'First line\nSecond line\n\nSecond stanza & <safe>',source:'Original source',sourceUrl:'https://example.org/source'};
   note.objects.x=xEmbed;note.objects.video=iframe;
   note.blocks=[{type:'object',id:'quote'},{type:'object',id:'x'},{type:'object',id:'video'}];
+  assert.match(editorBlockHTML(note.blocks[0],note),/<p>First line<br>Second line<br><br>Second stanza &amp; &lt;safe&gt;<\/p>/);
   const page=renderPublishedPage(note);
+  assert.match(page,/<blockquote class="pullquote"><p>First line<br>Second line<br><br>Second stanza &amp; &lt;safe&gt;<\/p>/);
   assert.match(page,/<cite><a href="https:\/\/example\.org\/source">Original source<\/a><\/cite>/);
   assert.equal((page.match(/platform\.x\.com\/widgets\.js/g)||[]).length,1,'the X widget script is loaded once');
   assert.doesNotMatch(page,/onclick/);
