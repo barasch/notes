@@ -233,6 +233,10 @@ function quoteSourceHTML(object) {
   return `<footer><cite>${url?`<a href="${escapeHTML(url)}">${label}</a>`:label}</cite></footer>`;
 }
 
+function quoteTextHTML(value) {
+  return escapeHTML(value).replace(/\r\n?|\n/g,'<br>');
+}
+
 export function editorBlockHTML(block, doc) {
   if (block.type === 'object') {
     const object = doc.objects[block.id];
@@ -253,7 +257,7 @@ export function editorBlockHTML(block, doc) {
       const host=source?new URL(source).hostname:'invalid address';
       return `<div class="${classes}" data-object-id="${id}" contenteditable="false"><p class="embed-label">Embedded media · ${escapeHTML(host)}</p><p>${escapeHTML(object.title||source||'External media')}</p></div>`;
     }
-    return `<blockquote class="editor-object pullquote" data-object-id="${id}" contenteditable="false"><p>${escapeHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
+    return `<blockquote class="editor-object pullquote" data-object-id="${id}" contenteditable="false"><p>${quoteTextHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
   }
   const tag = ['p','h2','h3'].includes(block.type) ? block.type : 'p';
   return `<${tag}>${cleanInline(block.html,doc.notes) || '<br>'}</${tag}>`;
@@ -312,7 +316,7 @@ export function publishedBlockHTML(block, doc) {
       const allow=String(object.allow||'').replace(/[\u0000-\u001f\u007f]/g,'').slice(0,500);
       return `<div class="${classes}" style="--embed-ratio:${ratio}"><iframe src="${escapeHTML(source)}" title="${escapeHTML(object.title||'Embedded media')}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"${allow?` allow="${escapeHTML(allow)}"`:''}${object.allowFullscreen?' allowfullscreen':''}></iframe></div>`;
     }
-    return `<blockquote class="pullquote"><p>${escapeHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
+    return `<blockquote class="pullquote"><p>${quoteTextHTML(object.text)}</p>${quoteSourceHTML(object)}</blockquote>`;
   }
   const tag = ['p','h2','h3'].includes(block.type) ? block.type : 'p';
   return `<${tag}>${cleanInline(block.html,doc.notes,{published:true})}</${tag}>`;
