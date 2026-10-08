@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "f2b54761-8235-4482-b035-40dfafd945ad",
+  "slug": "war-as-peace",
+  "title": "War as Peace",
+  "subtitle": "Seeing social force as Einstein saw physical force",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "p",
+      "html": "Standing still, we used to feel the forces of our bodies and the Earth oppose each other. Falling was acceleration. When we threw rocks and when we fired cannonballs, they did not fly straight—they curved toward the ground."
+    },
+    {
+      "type": "p",
+      "html": "Today we are aware, on some level, that this intuitive picture is wrong. Falling is stillness; standing is accelerating upward; projectiles <em>do</em> fly straight; while they fly, space flows from our “timelike” point of view."
+    },
+    {
+      "type": "p",
+      "html": ""
+    }
+  ],
+  "notes": {},
+  "objects": {},
+  "createdAt": 1791466818190,
+  "updatedAt": 1791467991244,
+  "savedTitle": "War as Peace",
+  "remoteSavedAt": "2026-10-08T13:59:51.698Z"
+}
