@@ -44,7 +44,7 @@
     },
     {
       "type": "p",
-      "html": ""
+      "html": "<br>"
     },
     {
       "type": "p",
@@ -68,7 +68,7 @@
     },
     {
       "type": "p",
-      "html": ""
+      "html": "<br>"
     },
     {
       "type": "p",
@@ -78,7 +78,7 @@
   "notes": {},
   "objects": {},
   "createdAt": 1791466818190,
-  "updatedAt": 1791578046239,
-  "remoteSavedAt": "2026-10-09T20:34:06.971Z",
+  "updatedAt": 1791578057884,
+  "remoteSavedAt": "2026-10-09T20:34:18.496Z",
   "savedTitle": "War as Peace"
 }
