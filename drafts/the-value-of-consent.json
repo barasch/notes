@@ -23,20 +23,60 @@
       "id": "4a803138-3787-4594-b1cb-e594c456054a"
     },
     {
-      "type": "p",
-      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody moral battleground precisely because it is indifferent to morality as such. An observation of a similar form, made by G. K. Chesterton about religion in his critical study of Dickens, may prove illuminating: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> Chesterton observed that, because there are no shortcuts toward piety to be discovered by the intellect, devotion frees intelligence of the charge to direct the mind and allows it to fully enrich the journey of the soul. A similar inversion distinguishes economics: the field has intense moral urgency because it treats human purposes as irreducible data. There are no moral shortcuts that can bring us toward sound economic understanding of our world. Because the field is silent as to what we ought ultimately to value, economics returns everyone across the realms of human activity to the question of whose decision has force."
+      "type": "h3",
+      "html": "Introduction"
     },
     {
       "type": "p",
-      "html": "In essays and talks, the late economist Walter E. Williams used to compare voluntary transactions to &quot;seduction&quot; (meant not as a pejorative implying manipulation but as a euphemism for sex outside marriage) and coerced government transfers to rape. In trade and sex, both participants expect to derive some good; when the government taxes and spends, on the other hand, it follows the logic of rape: it satisfies one party only by harming someone else."
+      "html": "Economics is widely misapprehended as a field of cold calculation, when the opposite is true. Economics is a bloody ethical battleground precisely because it is indifferent to ethics as such. An observation of a similar form, made by G. K. Chesterton about religion in his critical study of Dickens, helps make the point: “Piety produces intellectual greatness precisely because piety in itself is quite indifferent to intellectual greatness.”<span class=\"editor-reference\" data-note-id=\"fbe879a5-42a4-4d49-85eb-dc14ec0c965d\" contenteditable=\"false\">·</span> I read: because there are no shortcuts toward piety to be discovered by the intellect, devotion frees intelligence of the charge to direct the mind and frees it to enrich the journey of the soul. A similar inversion distinguishes economics: the field has intense ethical urgency because it treats human purposes as irreducible data. There are no ethical shortcuts that can bring us toward sound economic understanding of our world. Because the field is silent as to what we ought ultimately to value, economics returns everyone across the realms of human activity to the question of whose decision has force."
+    },
+    {
+      "type": "h3",
+      "html": "How Economics Sees Itself"
     },
     {
       "type": "p",
-      "html": "Another evocative device Williams employed was a representative individual American tax burden expressed as the fraction of a working year for which the individual was effectively uncompensated. Starting on January 1, Williams calculated that the end of the hypothetical indenture would fall on different dates in May or June as rates varied over the years."
+      "html": "Body"
+    },
+    {
+      "type": "h3",
+      "html": "Opponent Theories of Value"
+    },
+    {
+      "type": "p",
+      "html": "Labor versus (Subjective) Margin"
+    },
+    {
+      "type": "p",
+      "html": "how to accommodate older people’s declining capacity to adapt without consuming younger people’s finite opportunities to build a life"
+    },
+    {
+      "type": "h3",
+      "html": "A Consent Theory of Value"
     },
     {
       "type": "p",
       "html": "<br>"
+    },
+    {
+      "type": "p",
+      "html": "In essays and talks, the late economist Walter E. Williams used to compare voluntary transactions to “seduction” (meant not as a pejorative implying manipulation but as a euphemism for sex outside marriage) and coerced government transfers to rape. In trade and sex, both participants expect to derive some good; but when the government taxes and spends, on the other hand, it follows the logic of rape: it satisfies one party only by harming someone else."
+    },
+    {
+      "type": "p",
+      "html": "Another evocative device Williams employed was a representative individual American tax burden expressed as the fraction of a working year for which the individual was effectively uncompensated. Starting on January 1, Williams calculated that the end of the hypothetical indenture would fall on different dates in May or June as tax rates varied over the years."
+    },
+    {
+      "type": "p",
+      "html": "<br>"
+    },
+    {
+      "type": "p",
+      "html": "Ayn Rand"
+    },
+    {
+      "type": "p",
+      "html": "Recognizing consent as the criterion of transactions clarifies why consent is appropriate as a legal test of rape but an insufficient ethical test of sex."
     }
   ],
   "notes": {
@@ -49,7 +89,7 @@
     "67193fbc-0e5f-48b3-ad99-6deee7510198": {
       "type": "quote",
       "text": ". . . there is nothing\nEither good or bad, but thinking makes it so . . .",
-      "source": "William Shakespeare, Hamlet (1601)",
+      "source": "Shakespeare, Hamlet (1601)",
       "sourceUrl": ""
     },
     "5a9b6c8f-da0c-4ec7-b007-6b84bb4f97ac": {
@@ -60,8 +100,8 @@
     },
     "4a803138-3787-4594-b1cb-e594c456054a": {
       "type": "quote",
-      "text": "It is always single individuals who say We; even if they say it in chorus, it yet remains an utterance of single individuals.",
-      "source": "Ludwig von Mises, Human Action (1949)",
+      "text": "It is always the individual who says We; even if many say it in chorus, it is still uttered only by individuals.",
+      "source": "Mises, Human Action (1949)",
       "sourceUrl": ""
     },
     "b4aecebd-92f8-4b93-8f2a-dc93589c9693": {
@@ -72,7 +112,7 @@
     }
   },
   "createdAt": 1790608492824,
-  "updatedAt": 1791218424169,
-  "remoteSavedAt": "2026-10-05T16:40:24.846Z",
+  "updatedAt": 1791575281904,
+  "remoteSavedAt": "2026-10-09T19:48:02.542Z",
   "savedTitle": "The Value of Consent"
 }
