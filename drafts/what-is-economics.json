@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "id": "9df4648a-dcdd-4b84-8476-0dead956136e",
+  "slug": "what-is-economics",
+  "title": "What is Economics?",
+  "subtitle": "",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "p",
+      "html": "Economics is a widely misunderstood field with a raging clash of visions at its heart—an intellectual opposition that seizes much more of the human experience than is commonly appreciated."
+    },
+    {
+      "type": "p",
+      "html": "Most undergraduates are introduced to the subject as essentially focused on questions of management and policy—that is, society decides who gets what. The theory that follows is already implicitly framed as describing a domain amenable to engineering. "
+    },
+    {
+      "type": "p",
+      "html": "N. Gregory Mankiw’s <em>Principles of Economics</em>, the most widely assigned introductory economics textbook in the United States, begins by presenting an etymology of the word <em>economy</em>: it comes from “the Greek word for one who manages a household.” Households are <em>like</em> economies in that both face decisions: households must decide what each member will give and receive. “Like a household, a society faces many decisions.” Those decisions essentially consist of assigning people to jobs and determining how wealthy they will be. “It [society] must decide who will drive a Porsche and who will take the bus.”"
+    },
+    {
+      "type": "p",
+      "html": "Working his way toward the standard definition, Mankiw explains that the management of resources is important because they are <em>scarce</em>: economics is “the study of how society manages its scarce resources.”"
+    },
+    {
+      "type": "p",
+      "html": "But that is not the only way to approach the field."
+    },
+    {
+      "type": "p",
+      "html": "Mankiw’s etymology is oversimplified in a way that lends itself to his vision. The word economy does descend from Ancient Greek, via medieval French and Latin—from the combination of οἶκος (oikos), frequently translated as “household,” with νέμειν (nemein)—to distribute, allot, administer, manage, or dispense. But their composite was immediately richer than the sum of its parts. Xenophon, in his <em>Οἰκονομικός</em> (Oikonomikos), proposes οἰκονομία (oikonomia) as the name of a kind of knowledge, and asks what constitutes the work of a good οἰκονόμος (oikonomos)—which I would translate as “steward.” The οἶκος for which the οἰκονόμος is responsible includes the entire productive estate, family, slaves, possessions, relations, and obligations. Other writers applied the terminology beyond the homestead—for example, to public revenues and military administration."
+    },
+    {
+      "type": "p",
+      "html": "Representing economics as concerned with management rather than stewardship allows important elements of meaning to fall away: trust, transience, responsibility for other persons, judgment about proper ends, and accountability for what is preserved, consumed, or increased."
+    },
+    {
+      "type": "p",
+      "html": "Likewise, reducing the economic life of the household to the “many decisions” that must be made confines the analysis only to the observable outputs of oikonomia, making the household into an allocation mechanism. But a decision is merely the terminus of judgment. Before choosing, the steward must determine what is valuable--what is worth preserving and keeping, and what is worth seeking."
+    },
+    {
+      "type": "p",
+      "html": "Perhaps less subtle is Mankiw’s unannounced introduction of “society” as a decision making entity. As Mises, Hayek, and Sowell were all fond of pointing out, “society” makes no decisions."
+    },
+    {
+      "type": "p",
+      "html": "Mankiw could have introduced the field as “the science of how scarce resources are allocated”—“why do some people drive Porsches and some people take the bus?” But he doesn’t. In fact, no one ever decides who will drive a Porsche and who will take the bus. (That allows the same individual to take the bus during one period of their life and drive a Porsche during another period.)"
+    },
+    {
+      "type": "p",
+      "html": "Which leads us to the problem with the word “scarce.” It is not because resources themselves are scarce that our stewardship matters--it is because they are <em>valued</em> <em>by someone</em>. What makes our stewardship of a resource matter is the existence of a person with the idea of a person (often themselves) who has a desire that could be gratified by that resource. It’s the resource together with the nature of its link to a specific opportunity to gratify a person that is scarce. Resources themselves are not limited—a world is completely possible in which we all drive a Porsche; but in that world, we also starve. It is people who are scarce--people, and our time, and our physical extent, and our availability. It looks like the goods are limited, but it’s really the people."
+    }
+  ],
+  "notes": {},
+  "objects": {},
+  "createdAt": 1792334181536,
+  "updatedAt": 1792345263180,
+  "savedTitle": "What is Economics?",
+  "remoteSavedAt": "2026-10-18T17:41:03.563Z"
+}
