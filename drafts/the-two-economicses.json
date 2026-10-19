@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "id": "cc17691d-6bbf-4da8-b8ff-467ca20e2d12",
+  "slug": "the-two-economicses",
+  "title": "The Two Economicses",
+  "subtitle": "",
+  "publicationDate": "",
+  "blocks": [
+    {
+      "type": "p",
+      "html": "Economics is a widely misunderstood field with a raging clash of visions at its heart—an intellectual opposition that seizes much more of the human experience than is commonly appreciated. (In this regard, it is not unlike other fields.) In this note, I counterpose two broad traditions in the field for the lay reader: managerial economics and market economics."
+    },
+    {
+      "type": "p",
+      "html": "2. Most undergrads learn managerial economics — model construction, testing, maths, stats, and econometrics; Mankiw’s etymology, and what it leaves out, is a good metaphor for the approach to the field he represents."
+    },
+    {
+      "type": "p",
+      "html": "3. A very small number of schools teach market economics as foundational"
+    },
+    {
+      "type": "p",
+      "html": "4. Academic and professional economists would deny that the managerial mainstream is uniform. Despite the trend of convergence observed by Blanchard and by Levitt, philosophical differences remain. Structural versus design based empirical work. Presumptive object of suspicion. What (who) is economics for (what market will it be sold to)?  Chicago diagnostic price theory, MIT policy engineering, Berkeley empirical institutional criticism, and Stanford constructive theory operate on significantly different presumptions, but these are differences in method, style, and audience. In the top departments, it is understood that economics as a field begins from social management—not from individual judgment and emergent coordination."
+    },
+    {
+      "type": "p",
+      "html": "5. The key figures who built the the managerial tradition: Pigou supplied the rationale for correcting markets; Keynes supplied the rationale for stabilizing the whole economy; Samuelson made it into a program; Arrow with his general-equilibrium benchmark; Stiglitz “reconstructing” the project around information and incentives."
+    },
+    {
+      "type": "p",
+      "html": "6. It is not contested that the managerial approach is powerful and yields the power to predict and control; but it is also not contested that that power is finite and that its limits are not perfectly knowable; it is not contested that managerial economics has regularly produced episodes--and is expected to continue producing them--that, if rare, were unexpected and undesirable. It is not contested that the intellectual basis of the market process school is more firm and that it produces more certain knowledge, though not necessarily more usable knowledge."
+    },
+    {
+      "type": "p",
+      "html": "7. The market process tradition: Menger, Mises, Hayek, Coase, Friedman—not because all opposed every intervention, but because they challenged the availability of economic calculation, the concentration of knowledge, the inference from externality to government correction, the assumption of a benevolent state, discretionary stabilization, and the stability of policy models."
+    },
+    {
+      "type": "p",
+      "html": "8. The debate between Keynes and Hayek, or the comparison of Mises’s Human Action with Samuelson’s Economics published in the same year--these remind me of the giant thumb guy meme. The managerialists knew that what Hayek and Keynes were saying was true--but it didn’t matter, because their theory could be operationalized in the short term, could be used to train students and fund careers--it provided a theory for how government could act and ways for firms to play along with monetary, tax, and other policies."
+    },
+    {
+      "type": "p",
+      "html": "9. Theories of Value, Money/Currency/Credit/Debt - The Money and Sovereign Power Content"
+    },
+    {
+      "type": "p",
+      "html": ""
+    },
+    {
+      "type": "p",
+      "html": ""
+    },
+    {
+      "type": "p",
+      "html": "Below: spare text, sections of which my be appropriate to fit in"
+    },
+    {
+      "type": "p",
+      "html": "N. Gregory Mankiw’s <em>Principles of Economics</em>, the most widely assigned introductory economics textbook in the United States, is inflected by the managerial lens from its opening passage, a basically accurate but incomplete etymology of the word <em>economy</em>: it originates with “the Greek word for one who manages a household.” Households are like economies in that both face decisions: households must decide what each member will give and receive. “Like a household, a society faces many decisions.” Those decisions essentially consist of assigning people to jobs and determining how wealthy they will be. “It [society] must decide who will drive a Porsche and who will take the bus.”"
+    },
+    {
+      "type": "p",
+      "html": "Working his way to the standard definition, Mankiw explains that the management of resources is important because they are <em>scarce</em>: economics is “the study of how society manages its scarce resources.”"
+    },
+    {
+      "type": "p",
+      "html": "But that is not the only way to approach the field."
+    },
+    {
+      "type": "p",
+      "html": "Mankiw’s etymology is oversimplified in a way that lends itself to his vision. Although ancient meanings cannot determine the proper scope of contemporary economics, the conceptual material omitted from an explanation used to frame the subject Because Mankiw himself invokes etymology to frame the subject. The word economy does descend from Ancient Greek, via medieval French and Latin—from the combination of οἶκος (oikos), frequently translated as “household,” with νέμειν (nemein)—to distribute, allot, administer, manage, or dispense. But their composite was immediately richer than the sum of its parts. Xenophon, in his <em>Οἰκονομικός</em> (Oikonomikos), proposes οἰκονομία (oikonomia) as the name of a kind of knowledge, and asks what constitutes the work of a good οἰκονόμος (oikonomos)—which I would translate as “steward.” The οἶκος for which the οἰκονόμος is responsible includes the entire productive estate, family, slaves, possessions, relations, and obligations. Other writers applied the terminology beyond the homestead—for example, to public revenues and military administration."
+    },
+    {
+      "type": "p",
+      "html": "Representing economics as concerned with management rather than stewardship allows important elements of meaning to fall away: trust, transience, responsibility for other persons, judgment about proper ends, and accountability for what is preserved, consumed, or increased."
+    },
+    {
+      "type": "p",
+      "html": "Likewise, reducing the economic life of the household to the “many decisions” that must be made confines the analysis only to the observable outputs of oikonomia, making the household into an allocation mechanism. But a decision is merely the terminus of judgment. Before choosing, the steward must determine what is valuable--what is worth preserving and keeping, and what is worth seeking."
+    },
+    {
+      "type": "p",
+      "html": "Perhaps less subtle is Mankiw’s unannounced introduction of “society” as a decision making entity. As Mises, Hayek, and Sowell were all fond of pointing out, “society” makes no decisions."
+    },
+    {
+      "type": "p",
+      "html": "Mankiw could have introduced the field as “the science of how scarce resources are allocated”—“why do some people drive Porsches and some people take the bus?” But he doesn’t. In fact, no one ever decides who will drive a Porsche and who will take the bus. (That allows the same individual to take the bus during one period of their life and drive a Porsche during another period.)"
+    },
+    {
+      "type": "p",
+      "html": "Which leads us to the problem with the word “scarce.” It is not because resources themselves are scarce that our stewardship matters--it is because they are <em>valued</em> <em>by someone</em>. What makes our stewardship of a resource matter is the existence of a person with the idea of a person (often themselves) who has a desire that could be gratified by that resource. It’s the resource together with the nature of its link to a specific opportunity to gratify a person that is scarce. Resources themselves are not limited—a world is completely possible in which we all drive a Porsche; but in that world, we also starve. It is people who are scarce--people, and our time, and our physical extent, and our availability. It looks like the goods are limited, but it’s really the people."
+    }
+  ],
+  "notes": {},
+  "objects": {},
+  "createdAt": 1792426609553,
+  "updatedAt": 1792426609553,
+  "remoteSavedAt": "2026-10-19T16:16:49.981Z",
+  "savedTitle": "The Two Economicses"
+}
