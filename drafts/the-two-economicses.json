@@ -8,11 +8,27 @@
   "blocks": [
     {
       "type": "p",
-      "html": "Economics is a widely misunderstood field with a raging clash of visions at its heart—an intellectual opposition that seizes much more of the human experience than is commonly appreciated. (In this regard, it is not unlike other fields.) In this note, I counterpose two broad traditions in the field for the lay reader: managerial economics and market economics."
+      "html": "Economics is a widely misunderstood story with a permanent clash of visions at its heart—an intellectual opposition that seizes more of the human experience than is commonly appreciated. In this note, I counterpose for the lay reader the two traditions in the field: economics as a science of decisions and economics as social engineering."
     },
     {
       "type": "p",
-      "html": "2. Most undergrads learn managerial economics — model construction, testing, maths, stats, and econometrics; Mankiw’s etymology, and what it leaves out, is a good metaphor for the approach to the field he represents."
+      "html": "I do not privilege either approach; each is powerful yet fundamentally limited. A good view of any economic question requires illumination by both lights."
+    },
+    {
+      "type": "p",
+      "html": "However, the social engineering approach predominates in professional economics due to the institutional demand for its applied outputs. While the scientific approach may receive an introductory acknowledgment, most students are not asked to seriously consider scientific challenges to the standard engineering curriculum."
+    },
+    {
+      "type": "p",
+      "html": "The approach focused on social engineering through abstract targets serves individual purposes--careers and incomes--better. The approach focused on individual lives and purposes provides more accurate knowledge about the whole society despite offering little help to the individual author or reader."
+    },
+    {
+      "type": "p",
+      "html": ""
+    },
+    {
+      "type": "p",
+      "html": "Engineering predominates in professional economics, partly because of greater institutional demand for its applied output. Most students learn economics as engineering, with the opposing approach economics  — model construction, testing, maths, stats, and econometrics; Mankiw’s etymology, and what it leaves out, is a good metaphor for the approach to the field he represents."
     },
     {
       "type": "p",
@@ -44,11 +60,11 @@
     },
     {
       "type": "p",
-      "html": ""
+      "html": "<br>"
     },
     {
       "type": "p",
-      "html": ""
+      "html": "<br>"
     },
     {
       "type": "p",
@@ -94,7 +110,7 @@
   "notes": {},
   "objects": {},
   "createdAt": 1792426609553,
-  "updatedAt": 1792426609553,
-  "remoteSavedAt": "2026-10-19T16:16:49.981Z",
+  "updatedAt": 1792608552709,
+  "remoteSavedAt": "2026-10-21T18:49:13.256Z",
   "savedTitle": "The Two Economicses"
 }
