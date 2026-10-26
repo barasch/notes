@@ -14,15 +14,15 @@
   <div id="setupView" class="gate" hidden>
     <div class="gate-inner">
       <a class="site-wordmark" href="editor.html"><img src="favicon.png" alt=""><span>Writer</span></a>
-      <h1>Set up the editor</h1>
-      <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Notes+editor&amp;description=Write+notes+from+the+browser&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> for <code>barasch/notes</code> only, with Contents: read and write. Paste it here once. This page encrypts it before saving it in the repository.</p>
+      <h1>Set up Writer</h1>
+      <p>Create a <a href="https://github.com/settings/personal-access-tokens/new?name=Writer&amp;description=Write+private+drafts+and+publish+notes&amp;target_name=barasch&amp;contents=write" target="_blank" rel="noopener">fine-grained GitHub token</a> with Contents: read and write for <code>barasch/notes</code> and <code>barasch/writer-private</code>. Paste it here once. This page encrypts it before saving it in the Notes repository.</p>
       <p>The encrypted file is public and can be attacked by guessing passwords offline. Use a unique, randomly generated passphrase and keep it safe.</p>
       <form id="setupForm">
         <label>GitHub token<input id="setupToken" type="password" required autocomplete="off" spellcheck="false"></label>
         <label>Passphrase<input id="setupPassphrase" type="password" required autocomplete="new-password" minlength="20"></label>
         <button id="generatePassphrase" type="button" class="quiet-button">Generate a strong passphrase</button>
         <label>Confirm passphrase<input id="confirmPassphrase" type="password" required autocomplete="new-password"></label>
-        <button type="submit">Set up editor</button>
+        <button type="submit">Set up Writer</button>
       </form>
       <p class="gate-error" id="setupError" role="alert"></p>
     </div>
@@ -31,7 +31,7 @@
   <div id="unlockView" class="gate" hidden>
     <div class="gate-inner">
       <a class="site-wordmark" href="editor.html"><img src="favicon.png" alt=""><span>Writer</span></a>
-      <h1>Unlock the editor</h1>
+      <h1>Unlock Writer</h1>
       <form id="unlockForm">
         <label>Passphrase<input id="unlockPassphrase" type="password" required autocomplete="off"></label>
         <button type="submit">Unlock</button>
@@ -47,7 +47,13 @@
     </header>
     <main class="editor-shell draft-dashboard">
       <h1>Drafts</h1>
-      <button id="newNote" type="button">New note</button>
+      <div class="new-document-holder">
+        <button id="newDocument" type="button" aria-expanded="false" aria-controls="newDocumentMenu">New</button>
+        <div id="newDocumentMenu" class="new-document-menu" hidden>
+          <button type="button" data-new-kind="note">Note</button>
+          <button type="button" data-new-kind="script">Script</button>
+        </div>
+      </div>
       <div id="draftList" aria-live="polite"></div>
     </main>
   </div>
@@ -75,15 +81,18 @@
             <button type="button" data-command="replace-token">Replace token</button>
             <button type="button" data-command="lock">Lock</button>
           </div>
-          <div class="command-group">
-            <p>Note</p>
+          <div class="command-group" id="documentCommandGroup">
+            <p id="documentCommandHeading">Note</p>
             <button type="button" data-command="drafts">All drafts</button>
             <button type="button" id="menuSaveDraft" data-command="save">Save</button>
             <button type="button" id="menuSaveAs" data-command="save-as">Save as</button>
             <button type="button" id="menuRevert" data-command="revert">Revert</button>
             <button type="button" id="menuPublish" data-command="publish">Publish</button>
+            <button type="button" id="menuDual" data-command="dual" hidden disabled>Dual dialogue</button>
+            <button type="button" id="menuScenes" data-command="scenes" hidden>Hide scenes</button>
+            <button type="button" id="openExportMenu" class="submenu-opener" data-command="export-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="exportMenu" hidden><span>Export</span><span aria-hidden="true">›</span></button>
           </div>
-          <div class="command-group">
+          <div class="command-group" id="insertCommandGroup">
             <p>Insert</p>
             <button type="button" id="openInsertMenu" class="submenu-opener" data-command="insert-menu" aria-haspopup="menu" aria-expanded="false" aria-controls="insertMenu"><span>Insert</span><span aria-hidden="true">›</span></button>
           </div>
@@ -93,6 +102,10 @@
               <button type="button" data-theme="system" role="radio">System</button>
               <button type="button" data-theme="light" role="radio">Light</button>
               <button type="button" data-theme="dark" role="radio">Dark</button>
+            </div>
+            <div id="scriptViewOptions" class="theme-options" role="radiogroup" aria-label="Script view" hidden>
+              <button type="button" data-script-view="page" role="radio">Page</button>
+              <button type="button" data-script-view="pageless" role="radio">Pageless</button>
             </div>
             <button type="button" data-command="focus">Focus</button>
           </div>
@@ -107,6 +120,11 @@
           <button type="button" role="menuitem" data-insert="table">Table</button>
           <button type="button" role="menuitem" data-insert="embed">Embed</button>
         </div>
+        <div id="exportMenu" class="command-menu command-submenu" role="menu" aria-label="Export" hidden>
+          <button type="button" class="submenu-back" data-command="export-back"><span aria-hidden="true">‹</span><span>Back</span></button>
+          <button type="button" role="menuitem" data-export="fountain">Fountain</button>
+          <button type="button" role="menuitem" data-export="pdf">PDF</button>
+        </div>
       </div>
     </div>
     <button id="exitFocus" class="focus-exit quiet-button" type="button" hidden>Exit focus</button>
@@ -116,11 +134,15 @@
         <p id="remoteStamp" class="remote-stamp">Not yet saved to GitHub</p>
         <label class="visually-hidden" for="noteTitle">Title</label>
         <textarea id="noteTitle" class="edit-title" placeholder="Title" autocomplete="off" spellcheck="true" rows="1"></textarea>
-        <label class="visually-hidden" for="noteSubtitle">Subtitle</label>
-        <textarea id="noteSubtitle" class="edit-subtitle" placeholder="Subtitle (optional)" autocomplete="off" spellcheck="true" rows="1"></textarea>
+        <div id="subtitleField">
+          <label class="visually-hidden" for="noteSubtitle">Subtitle</label>
+          <textarea id="noteSubtitle" class="edit-subtitle" placeholder="Subtitle (optional)" autocomplete="off" spellcheck="true" rows="1"></textarea>
+        </div>
         <section class="editor-section" id="editorSection">
           <div id="editorBody" class="editor-body" contenteditable="true" role="textbox" aria-label="Note body" aria-multiline="true" spellcheck="true"><p><br></p></div>
+          <div id="scriptEditor" class="script-editor" aria-label="Script body" hidden></div>
           <div id="noteRail" class="note-rail" aria-label="Margin notes"></div>
+          <nav id="sceneRail" class="scene-rail" aria-label="Scenes" hidden></nav>
         </section>
       </article>
     </main>
