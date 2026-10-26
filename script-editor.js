@@ -2,29 +2,31 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261026-1';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261026-1';
+} from './script-core.js?v=20261026-2';
+import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261026-2';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
 function caretOffset(element) {
-  const selection=window.getSelection();
+  const selection=element.ownerDocument.defaultView.getSelection();
   if(!selection?.rangeCount||!element.contains(selection.anchorNode)) return 0;
-  const range=document.createRange();range.selectNodeContents(element);range.setEnd(selection.anchorNode,selection.anchorOffset);
+  const range=element.ownerDocument.createRange();range.selectNodeContents(element);range.setEnd(selection.anchorNode,selection.anchorOffset);
   return range.toString().length;
 }
 
 function setCaret(element,offset) {
-  const walker=document.createTreeWalker(element,window.NodeFilter.SHOW_TEXT);
+  const ownerDocument=element.ownerDocument,view=ownerDocument.defaultView;
+  const walker=ownerDocument.createTreeWalker(element,view.NodeFilter.SHOW_TEXT);
   let node,remaining=Math.max(0,offset);
   while((node=walker.nextNode())) {
     if(remaining<=node.length) {
-      const range=document.createRange();range.setStart(node,remaining);range.collapse(true);
-      const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);element.focus();return;
+      const range=ownerDocument.createRange();range.setStart(node,remaining);range.collapse(true);
+      element.focus();const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);return;
     }
     remaining-=node.length;
   }
-  element.focus();
+  const range=ownerDocument.createRange();range.selectNodeContents(element);range.collapse(false);
+  element.focus();const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);
 }
 
 function elementWidth(type,dual=false) {
@@ -35,16 +37,18 @@ function elementWidth(type,dual=false) {
 export class ScriptEditor {
   constructor({container,sceneRail,styleSelector,onChange=()=>{},onSelection=()=>{}}) {
     this.container=container;this.sceneRail=sceneRail;this.styleSelector=styleSelector;
+    this.ownerDocument=container.ownerDocument;this.window=this.ownerDocument.defaultView;
     this.onChange=onChange;this.onSelection=onSelection;this.document=null;
-    try {this.view=localStorage.getItem('writer-script-view')==='page'?'page':'pageless';}
-    catch {this.view='pageless';}
+    try {this.view=localStorage.getItem('writer-script-view')==='pageless'?'pageless':'page';}
+    catch {this.view='page';}
     try {this.scenesVisible=localStorage.getItem('writer-script-scenes')!=='hidden';}
     catch {this.scenesVisible=true;}
     this.suggestion=null;this.renderTimer=null;this.caret=null;
     container.addEventListener('input',event=>this.handleInput(event));
     container.addEventListener('keydown',event=>this.handleKeydown(event));
     container.addEventListener('click',event=>this.handleClick(event));
-    document.addEventListener('selectionchange',()=>this.selectionChanged());
+    this.selectionListener=()=>this.selectionChanged();
+    this.ownerDocument.addEventListener('selectionchange',this.selectionListener);
   }
 
   load(document) {
@@ -57,7 +61,7 @@ export class ScriptEditor {
   block(id) { const index=this.blockIndex(id);return index<0?null:this.document.blocks[index]; }
 
   activeElement() {
-    const selection=window.getSelection(),node=selection?.anchorNode;
+    const selection=this.window.getSelection(),node=selection?.anchorNode;
     return (node?.nodeType===1?node:node?.parentElement)?.closest?.('[data-script-editable]')||null;
   }
 
@@ -77,9 +81,10 @@ export class ScriptEditor {
     setCaret(target,saved.offset-Number(target.dataset.sourceStart||0));
   }
 
-  render() {
+  render(useStoredCaret=false) {
     if(!this.document)return;
-    const saved=this.captureCaret()||this.caret;
+    clearTimeout(this.renderTimer);this.renderTimer=null;
+    const saved=useStoredCaret?this.caret:(this.captureCaret()||this.caret);
     this.container.replaceChildren();
     this.container.classList.toggle('script-page-view',this.view==='page');
     this.container.classList.toggle('script-pageless-view',this.view!=='page');
@@ -94,7 +99,7 @@ export class ScriptEditor {
   }
 
   editable(block,{text=block.text,start=0,end=block.text.length,className='',style=''}={}) {
-    const field=document.createElement('div');
+    const field=this.ownerDocument.createElement('div');
     field.className=`script-text ${className}`.trim();field.contentEditable='true';
     field.spellcheck=!['scene','character','transition'].includes(block.type);
     field.dataset.scriptEditable='true';field.dataset.blockId=block.id;
@@ -106,15 +111,15 @@ export class ScriptEditor {
   }
 
   renderPageless() {
-    const sheet=document.createElement('div');sheet.className='script-continuous';
+    const sheet=this.ownerDocument.createElement('div');sheet.className='script-continuous';
     for(let index=0;index<this.document.blocks.length;index++) {
       const block=this.document.blocks[index];
-      const wrapper=document.createElement('div');wrapper.className=`script-block script-${block.type}`;wrapper.dataset.blockId=block.id;
+      const wrapper=this.ownerDocument.createElement('div');wrapper.className=`script-block script-${block.type}`;wrapper.dataset.blockId=block.id;
       if(block.dualWithPrevious)wrapper.classList.add('dual-second');
       if(block.type==='character') {
         const {cue,continued}=this.authoredCue(block,index);
         const field=this.editable(block,{text:cue});wrapper.append(field);
-        if(continued){const marker=document.createElement('span');marker.className='generated-continuation';marker.textContent=continued;wrapper.append(marker);}
+        if(continued){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';marker.textContent=continued;wrapper.append(marker);}
       } else wrapper.append(this.editable(block));
       sheet.append(wrapper);
     }
@@ -131,7 +136,7 @@ export class ScriptEditor {
       const display=displayCharacterCue(this.document.blocks,index),suffix=display.slice(authored.length);
       let marker=wrapper.querySelector('.generated-continuation');
       if(!suffix){marker?.remove();continue;}
-      if(!marker){marker=document.createElement('span');marker.className='generated-continuation';field.after(marker);}
+      if(!marker){marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';field.after(marker);}
       marker.textContent=suffix;
     }
   }
@@ -143,8 +148,8 @@ export class ScriptEditor {
       const first=sheet.querySelector(`[data-block-id="${CSS.escape(this.document.blocks[left?.start]?.id||'')}"]`);
       const last=sheet.querySelector(`[data-block-id="${CSS.escape(this.document.blocks[right?.end]?.id||'')}"]`);
       if(!first||!last)continue;
-      const group=document.createElement('div');group.className='dual-dialogue';
-      const leftLane=document.createElement('div'),rightLane=document.createElement('div');
+      const group=this.ownerDocument.createElement('div');group.className='dual-dialogue';
+      const leftLane=this.ownerDocument.createElement('div'),rightLane=this.ownerDocument.createElement('div');
       leftLane.className='dual-lane dual-left';rightLane.className='dual-lane dual-right';group.append(leftLane,rightLane);
       first.before(group);
       const stop=last.nextSibling;let node=first;
@@ -154,13 +159,13 @@ export class ScriptEditor {
   }
 
   renderPages() {
-    const model=paginateScript(this.document);this.lastPageModel=model;
+    const model=paginateScript(this.document,{includeEmpty:true});this.lastPageModel=model;
     for(const page of model.pages) {
-      const sheet=document.createElement('section');sheet.className='script-page';sheet.dataset.page=String(page.number);
+      const sheet=this.ownerDocument.createElement('section');sheet.className='script-page';sheet.dataset.page=String(page.number);
       const groups=new Map();
       for(const item of page.items) {
         if(item.generated||item.type==='page-number'||item.type==='more'||item.generatedContinued) {
-          const generated=document.createElement('div');generated.className=`script-line generated script-${item.type}`;
+          const generated=this.ownerDocument.createElement('div');generated.className=`script-line generated script-${item.type}`;
           generated.textContent=item.text;generated.style.left=`${item.x}pt`;generated.style.top=`${item.y}pt`;sheet.append(generated);continue;
         }
         const key=`${item.blockId}:${item.dualColumn||''}`;
@@ -171,15 +176,18 @@ export class ScriptEditor {
         const start=Math.min(...items.map(item=>item.sourceStart??0));
         const end=Math.max(...items.map(item=>item.sourceEnd??block.text.length));
         const first=items[0],dual=Boolean(first.dualColumn);
+        const left=block.type==='act'?SCRIPT_LAYOUT.action.x
+          :block.type==='transition'?SCRIPT_LAYOUT.transition.right-SCRIPT_LAYOUT.transition.chars*SCRIPT_LAYOUT.charWidth
+          :first.x;
         const text=block.type==='character'?stripManualContinued(block.text).trim().toUpperCase():block.text.slice(start,end);
         const field=this.editable(block,{text,start:block.type==='character'?0:start,end:block.type==='character'?block.text.length:end,
           className:`script-line script-${block.type}`,
-          style:`left:${first.x}pt;top:${first.y}pt;width:${elementWidth(block.type,dual)}pt;min-height:${items.length*SCRIPT_LAYOUT.lineHeight}pt`});
+          style:`left:${left}pt;top:${first.y}pt;width:${elementWidth(block.type,dual)}pt;min-height:${items.length*SCRIPT_LAYOUT.lineHeight}pt`});
         sheet.append(field);
         if(block.type==='character') {
           const display=displayCharacterCue(this.document.blocks,this.blockIndex(block.id),{pageContinued:first.generatedContinued});
           const authored=stripManualContinued(block.text).trim().toUpperCase();
-          if(display.length>authored.length){const marker=document.createElement('span');marker.className='generated-continuation page-generated';marker.textContent=display.slice(authored.length);marker.style.left=`${first.x+authored.length*SCRIPT_LAYOUT.charWidth}pt`;marker.style.top=`${first.y}pt`;sheet.append(marker);}
+          if(display.length>authored.length){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation page-generated';marker.textContent=display.slice(authored.length);marker.style.left=`${first.x+authored.length*SCRIPT_LAYOUT.charWidth}pt`;marker.style.top=`${first.y}pt`;sheet.append(marker);}
         }
       }
       this.container.append(sheet);
@@ -190,9 +198,9 @@ export class ScriptEditor {
     if(!this.sceneRail)return;
     this.sceneRail.hidden=!this.scenesVisible;
     this.sceneRail.replaceChildren();
-    const heading=document.createElement('p');heading.className='scene-list-heading';heading.textContent='Scenes';this.sceneRail.append(heading);
+    const heading=this.ownerDocument.createElement('p');heading.className='scene-list-heading';heading.textContent='Scenes';this.sceneRail.append(heading);
     for(const scene of deriveScenes(this.document.blocks)) {
-      const button=document.createElement('button');button.type='button';button.dataset.sceneId=scene.id;
+      const button=this.ownerDocument.createElement('button');button.type='button';button.dataset.sceneId=scene.id;
       button.innerHTML=`<span>${scene.ordinal}</span> ${scene.text}`;this.sceneRail.append(button);
     }
   }
@@ -219,7 +227,7 @@ export class ScriptEditor {
     const block=this.block(field.dataset.blockId),start=Number(field.dataset.sourceStart||0);
     const offset=start+caretOffset(field);
     block.text=block.text.slice(0,offset)+text+block.text.slice(offset);
-    this.caret={blockId:block.id,offset:offset+text.length};this.onChange();this.render();
+    this.caret={blockId:block.id,offset:offset+text.length};this.onChange();this.render(true);
   }
 
   handleKeydown(event) {
@@ -230,16 +238,16 @@ export class ScriptEditor {
       const next=cycleScriptType(block.type,event.shiftKey);if(next===block.type)return;
       block.type=next;if(next==='parenthetical'&&!block.text.trim()){block.text='()';this.caret={blockId:block.id,offset:1};}
       else this.caret=this.captureCaret(field);
-      delete block.dualWithPrevious;this.onChange();this.render();return;
+      delete block.dualWithPrevious;this.onChange();this.render(true);return;
     }
     if(event.key==='Enter'&&!event.altKey&&!event.ctrlKey&&!event.metaKey) {
-      event.preventDefault();
+      event.preventDefault();clearTimeout(this.renderTimer);this.renderTimer=null;
       if(event.shiftKey){this.insertAtCaret(field,'\n');return;}
       const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];
       const offset=Number(field.dataset.sourceStart||0)+caretOffset(field);
       const before=block.text.slice(0,offset),after=block.text.slice(offset);block.text=before;
       const next=newScriptBlock(nextScriptType(block.type),after);
-      this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.onChange();this.render();return;
+      this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.onChange();this.render(true);return;
     }
     if(event.key==='ArrowUp'||event.key==='ArrowDown')return;
   }
@@ -259,8 +267,8 @@ export class ScriptEditor {
 
   updateSuggestions(field) {
     this.closeSuggestions();const values=this.suggestionValues(field);if(!values.length)return;
-    const list=document.createElement('div');list.className='script-suggestions';list.role='listbox';
-    values.forEach((value,index)=>{const button=document.createElement('button');button.type='button';button.role='option';button.dataset.value=value;button.textContent=value;button.classList.toggle('selected',index===0);list.append(button);});
+    const list=this.ownerDocument.createElement('div');list.className='script-suggestions';list.role='listbox';
+    values.forEach((value,index)=>{const button=this.ownerDocument.createElement('button');button.type='button';button.role='option';button.dataset.value=value;button.textContent=value;button.classList.toggle('selected',index===0);list.append(button);});
     const parent=field.closest('.script-block,.script-page');
     if(parent?.classList.contains('script-page')) {
       list.style.left=field.style.left;list.style.top=`calc(${field.style.top} + ${field.style.minHeight||'12pt'})`;
@@ -285,7 +293,7 @@ export class ScriptEditor {
     const block=this.block(field.dataset.blockId),current=field.textContent;
     if(value.startsWith('(')) block.text=`${current.replace(/[\s(]*$/,'')} ${value}`;
     else block.text=value;
-    this.caret={blockId:block.id,offset:block.text.length};this.closeSuggestions();this.onChange();this.render();
+    this.caret={blockId:block.id,offset:block.text.length};this.closeSuggestions();this.onChange();this.render(true);
   }
 
   closeSuggestions() {this.suggestion?.list.remove();this.suggestion=null;}
@@ -310,7 +318,7 @@ export class ScriptEditor {
     block.type=type;delete block.dualWithPrevious;
     if(type==='parenthetical'&&!block.text.trim()){block.text='()';this.caret={blockId:block.id,offset:1};}
     else this.caret=this.captureCaret(field);
-    this.onChange();this.render();return true;
+    this.onChange();this.render(true);return true;
   }
 
   dialogueCharacterIndex(index) {
@@ -334,7 +342,7 @@ export class ScriptEditor {
     const character=this.dialogueCharacterIndex(this.blockIndex(field.dataset.blockId));if(character<0)return false;
     const block=this.document.blocks[character],enable=!block.dualWithPrevious;
     if(!setDualWithPrevious(this.document.blocks,character,enable))return false;
-    this.caret=this.captureCaret(field);this.onChange();this.render();return true;
+    this.caret=this.captureCaret(field);this.onChange();this.render(true);return true;
   }
 
   dualLabel() {
@@ -345,7 +353,7 @@ export class ScriptEditor {
 
   setView(view) {
     if(!['page','pageless'].includes(view)||this.view===view)return;
-    this.caret=this.captureCaret();this.view=view;try{localStorage.setItem('writer-script-view',view);}catch{}this.render();
+    this.caret=this.captureCaret();this.view=view;try{localStorage.setItem('writer-script-view',view);}catch{}this.render(true);
   }
 
   toggleScenes() {
@@ -354,4 +362,5 @@ export class ScriptEditor {
 
   pageModel() { this.lastPageModel=paginateScript(this.document);return this.lastPageModel; }
   focusFirst() {this.container.querySelector('[data-script-editable]')?.focus();}
+  destroy() {clearTimeout(this.renderTimer);this.ownerDocument.removeEventListener('selectionchange',this.selectionListener);}
 }

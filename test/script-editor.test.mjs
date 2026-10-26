@@ -4,13 +4,32 @@ import {JSDOM} from 'jsdom';
 import {ScriptEditor} from '../script-editor.js';
 import {newScript, newScriptBlock} from '../script-core.js';
 
-function environment() {
+function environment(view='pageless') {
   const dom=new JSDOM('<!doctype html><select id="styles"></select><main id="editor"></main><nav id="scenes"></nav>',{url:'https://example.test/editor.html',pretendToBeVisual:true});
   globalThis.window=dom.window;globalThis.document=dom.window.document;
   globalThis.localStorage=dom.window.localStorage;
+  if(view)localStorage.setItem('writer-script-view',view);
   globalThis.CSS={escape:value=>value};
   return dom;
 }
+
+test('ScriptEditor defaults to Page view and keeps the empty element created by Enter editable',()=>{
+  const dom=environment(null),script=newScript();
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  assert.equal(editor.view,'page');
+  assert.ok(document.querySelector('.script-page-view .script-page'));
+  let field=document.querySelector('[data-script-editable]');
+  field.textContent='INT. ROOM - DAY';placeCaret(field);field.dispatchEvent(new window.Event('input',{bubbles:true}));
+  key(field,'Enter');
+  assert.equal(script.blocks[1].type,'action');
+  field=document.querySelector(`[data-script-editable][data-block-id="${script.blocks[1].id}"]`);
+  assert.ok(field,'the empty next element remains visible in Page view');
+  assert.deepEqual(editor.caret,{blockId:script.blocks[1].id,offset:0});
+  editor.setView('pageless');assert.ok(document.querySelector('.script-pageless-view .script-continuous'));
+  editor.setView('page');assert.ok(document.querySelector('.script-page-view .script-page'));
+  dom.window.close();
+});
 
 function placeCaret(field,offset=field.textContent.length) {
   const node=field.firstChild||field.appendChild(document.createTextNode(''));

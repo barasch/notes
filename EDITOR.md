@@ -74,15 +74,17 @@ and removes it as soon as edits remove that condition. A page split also generat
 share the same US Letter, 12-point Courier layout.
 
 Select a second adjacent dialogue run and choose **Dual dialogue** to display the two
-runs simultaneously; **Separate dialogue** reverses it. The menu also switches between
-Page and Pageless views, shows or hides the linked Scene list, enters Focus mode, and
-exports Fountain or PDF. Fountain export uses `^` for the second half of dual dialogue.
+runs simultaneously; **Separate dialogue** reverses it. Scripts open in Page view; the
+menu can switch to a continuous Pageless view, show or hide the linked Scene list,
+enter Focus mode, and export Fountain or PDF. Fountain export uses `^` for the second
+half of dual dialogue.
 There is intentionally no title page, Script publishing, RTF export, or Note export.
 
 ## Saving and privacy
 
-Focus enters full screen; **Exit focus** or Escape returns to editing controls for both
-forms. Local recovery is encrypted in this browser's site storage around one second
+Focus enters full screen and leaves only the menu icon visible; hovering or focusing
+the control reveals the style selector. Choose **Exit focus** in the menu or press
+Escape to return to the full interface. Local recovery is encrypted in this browser's site storage around one second
 after a pause, or at least every five seconds during continuous typing. The circle's
 border is green once recovered, yellow while changes are pending, and red with a
 warning if recovery fails or is overdue. Local recovery includes images, but it is

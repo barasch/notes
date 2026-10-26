@@ -8,7 +8,7 @@
   <title>Writer</title>
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="stylesheet" href="tufte.css"/>
-  <link rel="stylesheet" href="editor.css?v=20261026-1"/>
+  <link rel="stylesheet" href="editor.css?v=20261026-2"/>
 </head>
 <body class="editor-app">
   <div id="setupView" class="gate" hidden>
@@ -107,7 +107,7 @@
               <button type="button" data-script-view="page" role="radio">Page</button>
               <button type="button" data-script-view="pageless" role="radio">Pageless</button>
             </div>
-            <button type="button" data-command="focus">Focus</button>
+            <button type="button" id="menuFocus" data-command="focus">Focus</button>
           </div>
         </div>
         <div id="insertMenu" class="command-menu command-submenu" role="menu" aria-label="Insert" hidden>
@@ -127,7 +127,6 @@
         </div>
       </div>
     </div>
-    <button id="exitFocus" class="focus-exit quiet-button" type="button" hidden>Exit focus</button>
     <div id="warning" class="editor-warning" role="alert" hidden></div>
     <main class="editor-shell">
       <article class="editor-paper" id="paper">
@@ -156,6 +155,6 @@
     </form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="editor.js?v=20261026-1"></script>
+  <script type="module" src="editor.js?v=20261026-2"></script>
 </body>
 </html>

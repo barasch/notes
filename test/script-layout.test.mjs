@@ -10,6 +10,14 @@ test('line wrapping is deterministic and respects explicit line breaks',()=>{
   assert.deepEqual(wrapScriptText('one\ntwo',20).map(line=>line.text),['one','two']);
 });
 
+test('editing pagination can expose empty elements without adding them to export pagination',()=>{
+  const script=newScript();
+  const exported=paginateScript(script),editing=paginateScript(script,{includeEmpty:true});
+  assert.equal(exported.pages[0].items.length,0);
+  assert.equal(editing.pages[0].items.length,1);
+  assert.equal(editing.pages[0].items[0].type,'scene');
+});
+
 test('acts start pages and transitions remain with following scenes',()=>{
   const script=newScript();
   script.blocks=[block('action',Array(52).fill('line').join('\n')),block('transition','cut to:'),block('scene','int. room - day'),block('act','act two'),block('scene','ext. road - day')];
