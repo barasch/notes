@@ -1,6 +1,6 @@
 import {
   dialogueRunAt, displayCharacterCue, previousDialogueRun, validateScript,
-} from './script-core.js';
+} from './script-core.js?v=20261026-1';
 
 export const SCRIPT_LAYOUT = Object.freeze({
   pageWidth: 612,
