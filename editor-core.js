@@ -1,7 +1,10 @@
-export const REPOSITORY = 'barasch/notes';
-export const DRAFT_BRANCH = 'drafts';
+import {validateScript} from './script-core.js';
+
+export const PUBLIC_REPOSITORY = 'barasch/notes';
+export const DRAFT_REPOSITORY = 'barasch/writer-private';
+export const REPOSITORY = PUBLIC_REPOSITORY;
+export const DRAFT_BRANCH = 'main';
 export const AUTH_PATH = 'editor-auth.json';
-const API_ROOT = `https://api.github.com/repos/${REPOSITORY}`;
 const ITERATIONS = 500_000;
 
 export function slugify(value) {
@@ -61,8 +64,16 @@ export function safeImageURL(value) {
 }
 
 export function sameDraftContent(left, right) {
-  const authored = value => ({
+  const authored = value => value?.kind === 'script' ? ({
     version:value?.version,
+    kind:'script',
+    id:value?.id,
+    slug:value?.slug,
+    title:value?.title,
+    blocks:value?.blocks,
+  }) : ({
+    version:value?.version,
+    kind:'note',
     id:value?.id,
     slug:value?.slug,
     title:value?.title,
@@ -78,14 +89,15 @@ export function sameDraftContent(left, right) {
 export function newNote() {
   const now = Date.now();
   return {
-    version: 1, id: crypto.randomUUID(), slug: '', title: '', subtitle: '',
+    version: 1, kind: 'note', id: crypto.randomUUID(), slug: '', title: '', subtitle: '',
     publicationDate: '', remoteSha: null, blocks: [{type:'h2',html:''}],
     notes: {}, objects: {}, createdAt: now, updatedAt: now,
   };
 }
 
 export function validateNote(value) {
-  if (!value || value.version !== 1 || !Array.isArray(value.blocks) || !value.notes || !value.objects) {
+  if (!value || value.version !== 1 || (value.kind && value.kind !== 'note')
+    || !Array.isArray(value.blocks) || !value.notes || !value.objects) {
     throw new Error('This draft uses a format the editor cannot read. No changes were made.');
   }
   if (typeof value.id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(value.id)
@@ -94,7 +106,18 @@ export function validateNote(value) {
     || Object.keys(value.objects).some(id=>!/^[a-zA-Z0-9-]{1,80}$/.test(id))) {
     throw new Error('This draft has an invalid address or reference. No changes were made.');
   }
+  value.kind='note';
   return value;
+}
+
+export function documentKind(value) { return value?.kind === 'script' ? 'script' : 'note'; }
+export function validateDocument(value) {
+  return documentKind(value) === 'script' ? validateScript(value) : validateNote(value);
+}
+export function draftPath(valueOrKind,slug) {
+  const kind=typeof valueOrKind==='string'?valueOrKind:documentKind(valueOrKind);
+  const name=slug ?? valueOrKind?.slug;
+  return `drafts/${kind === 'script' ? 'scripts' : 'notes'}/${name}.json`;
 }
 
 // The same narrow HTML vocabulary is used for live editing, local recovery, and publication.
@@ -403,9 +426,12 @@ export async function unlockCredential(record,passphrase) {
 }
 
 export class GitHub {
-  constructor(token='') { this.token=token; }
+  constructor(token='',repository=PUBLIC_REPOSITORY) {
+    this.token=token;this.repository=repository;
+    this.apiRoot=`https://api.github.com/repos/${repository}`;
+  }
   async request(path,{method='GET',body,allow404=false}={}) {
-    const response=await fetch(`${API_ROOT}${path}`,{
+    const response=await fetch(`${this.apiRoot}${path}`,{
       method,cache:'no-store',headers:{Accept:'application/vnd.github+json',...(this.token?{Authorization:`Bearer ${this.token}`} : {}),...(body?{'Content-Type':'application/json'}:{})},
       ...(body?{body:JSON.stringify(body)}:{}),
     });
@@ -429,15 +455,10 @@ export class GitHub {
     return this.request(`/contents/${path}`,{method:'PUT',body:{message:`Save ${path}`,content:utf8Base64(text),branch,...(sha?{sha}:{})}});
   }
   async ref(branch) { return this.request(`/git/ref/heads/${branch}`,{allow404:true}); }
-  async ensureDraftBranch() {
-    if (await this.ref(DRAFT_BRANCH)) return;
-    const main=await this.ref('main');
-    try { await this.request('/git/refs',{method:'POST',body:{ref:`refs/heads/${DRAFT_BRANCH}`,sha:main.object.sha}}); }
-    catch(error) { if (!await this.ref(DRAFT_BRANCH)) throw error; }
-  }
-  async drafts() {
-    const files=await this.request(`/contents/drafts?ref=${DRAFT_BRANCH}`,{allow404:true});
-    return Array.isArray(files) ? files.filter(file=>file.name.endsWith('.json')) : [];
+  async drafts(kind) {
+    const directory=kind==='script'?'scripts':'notes';
+    const files=await this.request(`/contents/drafts/${directory}?ref=${DRAFT_BRANCH}`,{allow404:true});
+    return Array.isArray(files) ? files.filter(file=>file.name.endsWith('.json')).map(file=>({...file,kind})) : [];
   }
   async fileTimes(path,branch=DRAFT_BRANCH) {
     const commits=await this.request(`/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(path)}&per_page=100`,{allow404:true});
@@ -445,24 +466,23 @@ export class GitHub {
     const timestamp=commit=>Date.parse(commit?.commit?.author?.date || commit?.commit?.committer?.date || '')||0;
     return {createdAt:timestamp(commits.at(-1)),savedAt:timestamp(commits[0])};
   }
-  async saveDraft(note) {
-    await this.ensureDraftBranch();
-    const path=`drafts/${note.slug}.json`;
+  async saveDraft(document) {
+    const path=draftPath(document);
     const existing=await this.file(path,DRAFT_BRANCH);
-    if ((existing?.sha || null)!==(note.remoteSha || null)) {
+    if ((existing?.sha || null)!==(document.remoteSha || null)) {
       const error=new Error('The GitHub draft changed elsewhere. Your local copy is intact.');
       error.conflict=true; throw error;
     }
-    const savedAt=new Date().toISOString(),savedTitle=note.title.trim();
-    const source={...note,savedTitle,remoteSha:undefined,remoteSavedAt:savedAt};
+    const savedAt=new Date().toISOString(),savedTitle=document.title.trim();
+    const source={...document,savedTitle,remoteSha:undefined,remoteSavedAt:savedAt};
     const result=await this.writeFile(path,JSON.stringify(source,null,2)+'\n',DRAFT_BRANCH,existing?.sha);
-    note.remoteSha=result.content.sha;
-    note.remoteSavedAt=savedAt;
-    note.savedTitle=savedTitle;
+    document.remoteSha=result.content.sha;
+    document.remoteSavedAt=savedAt;
+    document.savedTitle=savedTitle;
     return result;
   }
-  async deleteDraft(slug,expectedSha=null) {
-    const path=`drafts/${slug}.json`;
+  async deleteDraft(kind,slug,expectedSha=null) {
+    const path=draftPath(kind,slug);
     const current=await this.file(path,DRAFT_BRANCH);
     if(!current) return false;
     if(expectedSha && current.sha!==expectedSha) {
@@ -526,7 +546,7 @@ export async function recoveryAll(key) {
   db.close();
   const drafts=[];
   for(const record of records) {
-    try { drafts.push({...record,document:validateNote(JSON.parse(await unseal(record,key)))}); }
+    try { drafts.push({...record,document:validateDocument(JSON.parse(await unseal(record,key)))}); }
     catch { /* A replaced credential may leave old local copies unreadable. */ }
   }
   return drafts;

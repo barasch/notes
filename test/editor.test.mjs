@@ -116,10 +116,9 @@ test('credential and local recovery are encrypted with the passphrase',async()=>
 test('GitHub draft save uses the selected branch and rejects an intervening change',async()=>{
   class Fake extends GitHub {
     constructor() {super('test');this.files=new Map();this.writes=0;}
-    async ensureDraftBranch() {}
     async file(path) {return this.files.get(path)||null;}
     async writeFile(path,text,branch,sha) {
-      assert.equal(branch,'drafts');
+      assert.equal(branch,'main');
       assert.equal(sha,this.files.get(path)?.sha);
       this.writes++;this.files.set(path,{sha:`sha-${this.writes}`,text});
       return {content:{sha:`sha-${this.writes}`},commit:{author:{date:'2026-09-13T12:00:00Z'}}};
@@ -128,8 +127,8 @@ test('GitHub draft save uses the selected branch and rejects an intervening chan
   const fake=new Fake(),doc=newNote();doc.slug='example';
   await fake.saveDraft(doc);
   assert.equal(fake.writes,1);assert.equal(doc.remoteSha,'sha-1');
-  assert.match(fake.files.get('drafts/example.json').text,/"slug": "example"/);
-  fake.files.set('drafts/example.json',{sha:'another-device',text:'{}'});
+  assert.match(fake.files.get('drafts/notes/example.json').text,/"slug": "example"/);
+  fake.files.set('drafts/notes/example.json',{sha:'another-device',text:'{}'});
   await assert.rejects(fake.saveDraft(doc),/changed elsewhere/);
   assert.equal(fake.writes,1);
   assert.equal(utf8Base64('é'),'w6k=');
