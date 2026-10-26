@@ -4,10 +4,10 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js';
-import {newScript, scriptToFountain} from './script-core.js';
-import {downloadScriptPdf} from './script-pdf.js';
-import {ScriptEditor} from './script-editor.js';
+} from './editor-core.js?v=20261026-1';
+import {newScript, scriptToFountain} from './script-core.js?v=20261026-1';
+import {downloadScriptPdf} from './script-pdf.js?v=20261026-1';
+import {ScriptEditor} from './script-editor.js?v=20261026-1';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
