@@ -9,14 +9,19 @@ const source=readFileSync(new URL('../editor.html',import.meta.url),'utf8');
 const editorCSS=readFileSync(new URL('../editor.css',import.meta.url),'utf8');
 const tufteCSS=readFileSync(new URL('../tufte.css',import.meta.url),'utf8');
 const files=new Map();
-let branchExists=false,githubWrites=0;
+const apiRequests=[];
+let githubWrites=0;
 const result=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
 globalThis.fetch=async(url,options={})=>{
-  const path=new URL(url).pathname.replace('/repos/barasch/notes','');
+  const parsed=new URL(url),match=parsed.pathname.match(/^\/repos\/barasch\/(notes|writer-private)(.*)$/);
+  if(!match)throw new Error(`Unexpected repository request: ${parsed.pathname}`);
+  const [,repository,path]=match;
   const method=options.method||'GET';
-  if(method==='GET' && path==='/contents/drafts') {
-    if(!branchExists) return result({message:'Not Found'},404);
-    return result([...files.keys()].filter(name=>name.startsWith('drafts/')&&name.endsWith('.json')).map(name=>({name:name.slice('drafts/'.length)})));
+  apiRequests.push({repository,path,method});
+  if(method==='GET' && path==='/contents') return result([]);
+  if(method==='GET' && /^\/contents\/drafts\/(notes|scripts)$/.test(path)) {
+    const directory=path.slice('/contents/'.length);
+    return result([...files.keys()].filter(name=>name.startsWith(`${directory}/`)&&name.endsWith('.json')).map(name=>({name:name.slice(directory.length+1),sha:files.get(name).sha})));
   }
   if(method==='GET' && path.startsWith('/contents/')) {
     const file=files.get(path.slice('/contents/'.length));
@@ -39,10 +44,8 @@ globalThis.fetch=async(url,options={})=>{
     {commit:{author:{date:'2026-09-13T12:00:00Z'}}},
     {commit:{author:{date:'2026-09-12T09:30:00Z'}}},
   ]);
-  if(method==='GET' && path==='/git/ref/heads/drafts') return branchExists?result({object:{sha:'draft-head'}}):result({message:'Not Found'},404);
   if(method==='GET' && path==='/git/ref/heads/main') return result({object:{sha:'main-head'}});
-  if(method==='POST' && path==='/git/refs') {branchExists=true;return result({ref:'refs/heads/drafts'},201);}
-  throw new Error(`Unexpected API request: ${method} ${path}`);
+  throw new Error(`Unexpected API request: ${method} ${repository} ${path}`);
 };
 globalThis.indexedDB=indexedDB;
 
@@ -80,7 +83,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(githubWrites,1,'only setup has written to GitHub');
   assert.doesNotMatch(files.get('editor-auth.json').text,/token-once/);
 
-  document.getElementById('newNote').click();
+  document.getElementById('newDocument').click();document.querySelector('[data-new-kind=note]').click();
   document.getElementById('noteTitle').value='A recovered note';
   document.getElementById('noteTitle').dispatchEvent(new window.Event('input',{bubbles:true}));
   document.getElementById('editorBody').innerHTML='<p>A paragraph that survives a reload.</p>';
@@ -94,7 +97,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(document.getElementById('contentDialog').open,false,'the title-derived address needs no second confirmation');
   await until(()=>!document.getElementById('menuSaveDraft').disabled);
   assert.equal(githubWrites,2,'Save draft is the only writing action after setup');
-  assert.match(files.get('drafts/a-recovered-note.json').text,/survives a reload/);
+  assert.match(files.get('drafts/notes/a-recovered-note.json').text,/survives a reload/);
   const remoteTime=document.getElementById('remoteStamp').textContent;
   document.getElementById('editorBody').innerHTML='<p>A later paragraph, saved only in this browser.</p>';
   document.getElementById('editorBody').dispatchEvent(new window.Event('input',{bubbles:true}));
@@ -115,7 +118,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   assert.equal(document.querySelectorAll('#insertMenu [data-insert]').length,7);
   assert.deepEqual(
     [...document.querySelectorAll('#commandMenu [data-command]')].map(button=>button.dataset.command),
-    ['replace-token','lock','drafts','save','save-as','revert','publish','insert-menu','focus'],
+    ['replace-token','lock','drafts','save','save-as','revert','publish','dual','scenes','export-menu','insert-menu','focus'],
   );
   assert.equal(document.querySelector('#workspace .site-wordmark span').textContent,'Writer');
   document.querySelector('[data-theme=dark]').click();
@@ -136,7 +139,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
   document.getElementById('menuButton').click();
   document.querySelector('[data-command=drafts]').click();
   await until(()=>!document.getElementById('dashboardView').hidden);
-  assert.equal(document.querySelector('.draft-kind').textContent,'Unsaved browser changes');
+  assert.equal(document.querySelector('.draft-kind').textContent,'Note · Unsaved browser changes');
   assert.doesNotMatch(document.getElementById('draftList').textContent,/Local recovery over/i);
   document.querySelector('.draft-title').click();
   await until(()=>!document.getElementById('workspace').hidden);
@@ -199,7 +202,7 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
   document.getElementById('unlockPassphrase').value=passphrase;
   document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('dashboardView').hidden);
-  document.getElementById('newNote').click();
+  document.getElementById('newDocument').click();document.querySelector('[data-new-kind=note]').click();
 
   const body=document.getElementById('editorBody'),selector=document.getElementById('styleSelector');
   const title=document.getElementById('noteTitle'),subtitle=document.getElementById('noteSubtitle');
@@ -285,7 +288,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   document.getElementById('unlockPassphrase').value=passphrase;
   document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('dashboardView').hidden);
-  document.getElementById('newNote').click();
+  document.getElementById('newDocument').click();document.querySelector('[data-new-kind=note]').click();
 
   const workspace=document.getElementById('workspace');
   const controls=workspace.querySelector('.floating-tools');
@@ -332,7 +335,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   assert.equal(document.getElementById('collapsedNote').hidden,false);
   assert.equal(document.getElementById('collapsedTitle').textContent,'Original title');
   assert.equal(document.getElementById('collapsedSubtitle').textContent,'A compact subtitle');
-  const original=files.get('drafts/original-title.json').text;
+  const original=files.get('drafts/notes/original-title.json').text;
   const originalId=JSON.parse(original).id;
 
   document.getElementById('menuButton').click();
@@ -341,8 +344,8 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   const newFilename=document.querySelector('#dialogFields [name=slug]');newFilename.value='working-file';
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('workspace').hidden && location.search.includes('working-file'));
-  assert.equal(files.get('drafts/original-title.json').text,original,'Save as leaves the source draft byte-for-byte intact');
-  const copy=JSON.parse(files.get('drafts/working-file.json').text);
+  assert.equal(files.get('drafts/notes/original-title.json').text,original,'Save as leaves the source draft byte-for-byte intact');
+  const copy=JSON.parse(files.get('drafts/notes/working-file.json').text);
   assert.notEqual(copy.id,originalId,'the copy has an independent note identity');
   assert.equal(copy.title,'Original title','Save as changes the filename, not the displayed title');
   assert.equal(copy.publicationDate,'');
@@ -351,15 +354,15 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
 
   title.value='Independent copy';title.dispatchEvent(new window.Event('input',{bubbles:true}));
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
-  await until(()=>files.has('drafts/independent-copy.json'));
-  assert.equal(JSON.parse(files.get('drafts/working-file.json').text).title,'Original title','a title change leaves the preceding draft alone');
-  const renamed=JSON.parse(files.get('drafts/independent-copy.json').text);
+  await until(()=>files.has('drafts/notes/independent-copy.json'));
+  assert.equal(JSON.parse(files.get('drafts/notes/working-file.json').text).title,'Original title','a title change leaves the preceding draft alone');
+  const renamed=JSON.parse(files.get('drafts/notes/independent-copy.json').text);
   assert.notEqual(renamed.id,copy.id,'a title change creates an independent draft');
 
   title.value='Original title';title.dispatchEvent(new window.Event('input',{bubbles:true}));
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true}));
-  await until(()=>files.has('drafts/original-title-2.json'));
-  const numbered=JSON.parse(files.get('drafts/original-title-2.json').text);
+  await until(()=>files.has('drafts/notes/original-title-2.json'));
+  const numbered=JSON.parse(files.get('drafts/notes/original-title-2.json').text);
   assert.equal(numbered.title,'Original title','matching titles are allowed and receive a numbered filename');
   document.getElementById('menuButton').click();document.querySelector('[data-command=drafts]').click();
   await until(()=>!document.getElementById('dashboardView').hidden);
@@ -370,7 +373,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   assert.equal(document.getElementById('contentDialog').open,true);
   assert.match(document.getElementById('dialogFields').textContent,/cannot be undone/i);
   document.getElementById('contentForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
-  await until(()=>!files.has('drafts/original-title-2.json'));
+  await until(()=>!files.has('drafts/notes/original-title-2.json'));
   await until(()=>![...document.querySelectorAll('.draft-filename')].some(element=>element.textContent.includes('original-title-2')));
   const {key:deletionKey}=await unlockCredential(encrypted,passphrase);
   assert.equal((await recoveryAll(deletionKey)).some(record=>record.document.id===numbered.id),false,'permanent delete also removes local recovery');
@@ -389,7 +392,7 @@ test('external images have directly editable rich captions and side captions sta
   document.getElementById('unlockPassphrase').value=passphrase;
   document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await until(()=>!document.getElementById('dashboardView').hidden);
-  document.getElementById('newNote').click();
+  document.getElementById('newDocument').click();document.querySelector('[data-new-kind=note]').click();
   document.getElementById('noteTitle').value='Image note';
   document.getElementById('noteTitle').dispatchEvent(new window.Event('input',{bubbles:true}));
 
@@ -437,5 +440,54 @@ test('external images have directly editable rich captions and side captions sta
   assert.match(renderPublishedPage({...recovered,slug:'image-note'}),/figure class="caption-side"[\s\S]*<figcaption>A <em>documentary<\/em> image with <a href="https:\/\/example.org\/source">source<\/a>\.<\/figcaption>/);
   assert.match(tufteCSS,/@media \(max-width: 1050px\)[\s\S]*figure\.caption-side \{[\s\S]*display: block;/);
   assert.match(editorCSS,/\.toast \{[^}]*top: calc\(61px \+ \.75rem\);[^}]*left: 50%;[^}]*translateX\(-50%\)/);
+  dom.window.close();
+});
+
+test('New Script uses private script storage and exposes screenplay controls without Note publication',async()=>{
+  const passphrase='a-fifth-long-passphrase-for-script-tests';
+  const {record:encrypted}=await createCredential('token-for-script-tests',passphrase);
+  files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'script-auth'});
+  const requestStart=apiRequests.length;
+  const dom=page('https://barasch.github.io/notes/editor.html');
+  await import('../editor.js?scripts');
+  await until(()=>!document.getElementById('unlockView').hidden);
+  document.getElementById('unlockPassphrase').value=passphrase;
+  document.getElementById('unlockForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await until(()=>!document.getElementById('dashboardView').hidden);
+
+  document.getElementById('newDocument').click();
+  assert.equal(document.getElementById('newDocumentMenu').hidden,false);
+  document.querySelector('[data-new-kind=script]').click();
+  assert.equal(document.getElementById('scriptEditor').hidden,false);
+  assert.equal(document.getElementById('editorBody').hidden,true);
+  assert.equal(document.getElementById('subtitleField').hidden,true);
+  assert.equal(document.getElementById('menuPublish').hidden,true);
+  assert.equal(document.getElementById('openExportMenu').hidden,false);
+  assert.deepEqual([...document.getElementById('styleSelector').options].map(option=>option.value),['act','scene','action','character','parenthetical','dialogue','transition']);
+
+  const title=document.getElementById('noteTitle');title.value='Test script';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  const field=()=>document.querySelector('#scriptEditor [data-script-editable]');
+  field().textContent='INT. ROOM - DAY';field().dispatchEvent(new window.Event('input',{bubbles:true}));
+  field().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+  const last=()=>[...document.querySelectorAll('#scriptEditor [data-script-editable]')].at(-1);
+  last().textContent='John enters.';last().dispatchEvent(new window.Event('input',{bubbles:true}));
+  last().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  last().textContent='JOHN';last().dispatchEvent(new window.Event('input',{bubbles:true}));
+  last().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
+  last().textContent='Hello.';last().dispatchEvent(new window.Event('input',{bubbles:true}));
+
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',metaKey:true,bubbles:true,cancelable:true}));
+  await until(()=>files.has('drafts/scripts/test-script.json'));
+  const saved=JSON.parse(files.get('drafts/scripts/test-script.json').text);
+  assert.equal(saved.kind,'script');assert.deepEqual(saved.blocks.map(block=>block.type),['scene','character','dialogue']);
+  assert.equal(files.has('drafts/notes/test-script.json'),false);
+  const scriptRequests=apiRequests.slice(requestStart);
+  assert.ok(scriptRequests.some(request=>request.repository==='writer-private'&&request.method==='PUT'&&request.path==='/contents/drafts/scripts/test-script.json'));
+  assert.equal(scriptRequests.some(request=>request.repository==='notes'&&request.path.startsWith('/contents/drafts/')),false);
+  assert.match(location.search,/kind=script/);
+
+  document.getElementById('menuButton').click();document.getElementById('openExportMenu').click();
+  assert.equal(document.getElementById('exportMenu').hidden,false);
+  assert.deepEqual([...document.querySelectorAll('#exportMenu [data-export]')].map(button=>button.dataset.export),['fountain','pdf']);
   dom.window.close();
 });
