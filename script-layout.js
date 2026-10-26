@@ -1,6 +1,6 @@
 import {
   dialogueRunAt, displayCharacterCue, previousDialogueRun, validateScript,
-} from './script-core.js?v=20261026-1';
+} from './script-core.js?v=20261026-2';
 
 export const SCRIPT_LAYOUT = Object.freeze({
   pageWidth: 612,
@@ -88,7 +88,7 @@ function itemFor(block,type,text,x,row,extra={}) {
   return {blockId:block?.id||null,type,text,x,row,y:SCRIPT_LAYOUT.top+row*SCRIPT_LAYOUT.lineHeight,...extra};
 }
 
-export function paginateScript(source) {
+export function paginateScript(source,{includeEmpty=false}={}) {
   const script=validateScript(structuredClone(source));
   const blocks=script.blocks,pairs=dualPairs(blocks);
   const pages=[];
@@ -191,7 +191,24 @@ export function paginateScript(source) {
   newPage();
   for(let index=0;index<blocks.length;) {
     const block=blocks[index];
-    if(!block.text.trim()){index++;continue;}
+    if(!block.text.trim()){
+      if(includeEmpty) {
+        const config=SCRIPT_LAYOUT[block.type]||SCRIPT_LAYOUT.action;
+        if(block.type==='act') {
+          ensure(2,{fresh:true});
+          put(block,'act','',SCRIPT_LAYOUT.action.x,{sourceStart:0,sourceEnd:0});blank();
+        } else if(block.type==='scene') {
+          ensure(3);if(row)blank();put(block,'scene','',SCRIPT_LAYOUT.scene.x,{sourceStart:0,sourceEnd:0});blank();
+        } else if(block.type==='transition') {
+          ensure(2);if(row)blank();
+          put(block,'transition','',SCRIPT_LAYOUT.transition.right-SCRIPT_LAYOUT.transition.chars*SCRIPT_LAYOUT.charWidth,{sourceStart:0,sourceEnd:0});blank();
+        } else {
+          if(row&&block.type!=='action')blank();
+          put(block,block.type,'',config.x||SCRIPT_LAYOUT.action.x,{sourceStart:0,sourceEnd:0});
+        }
+      }
+      index++;continue;
+    }
     if(pairs.has(index)) {
       if(row)blank();placeDual(pairs.get(index));blank();index=pairs.get(index).right.end+1;continue;
     }

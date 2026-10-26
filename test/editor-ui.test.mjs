@@ -326,7 +326,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   title.getBoundingClientRect=()=>({bottom:0});toolbar.getBoundingClientRect=()=>({bottom:61});
   window.dispatchEvent(new window.Event('scroll'));
   await new Promise(resolve=>requestAnimationFrame(resolve));
-  assert.equal(document.getElementById('collapsedNote').hidden,true,'a merely local draft does not enter the header');
+  assert.equal(document.getElementById('collapsedNote').hidden,false,'the title collapses into the sticky header before the first remote save');
 
   assert.equal(document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',bubbles:true,cancelable:true,metaKey:true})),false,'Command-S is captured by the editor');
   await until(()=>document.getElementById('remoteStamp').textContent.startsWith('Draft saved to GitHub:'));
@@ -463,9 +463,37 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.equal(document.getElementById('subtitleField').hidden,true);
   assert.equal(document.getElementById('menuPublish').hidden,true);
   assert.equal(document.getElementById('openExportMenu').hidden,false);
+  assert.ok(document.getElementById('scriptEditor').classList.contains('script-page-view'));
+  assert.equal(document.querySelector('[data-script-view=page]').classList.contains('selected'),true);
+  assert.equal(document.querySelector('[data-script-view=pageless]').classList.contains('selected'),false);
   assert.deepEqual([...document.getElementById('styleSelector').options].map(option=>option.value),['act','scene','action','character','parenthetical','dialogue','transition']);
 
+  document.getElementById('menuButton').click();document.querySelector('[data-script-view=pageless]').click();
+  assert.ok(document.getElementById('scriptEditor').classList.contains('script-pageless-view'));
+  assert.equal(document.querySelector('[data-script-view=pageless]').classList.contains('selected'),true);
+  document.querySelector('[data-script-view=page]').click();
+  assert.ok(document.getElementById('scriptEditor').classList.contains('script-page-view'));
+  document.getElementById('menuButton').click();
+
   const title=document.getElementById('noteTitle');title.value='Test script';title.dispatchEvent(new window.Event('input',{bubbles:true}));
+  title.getBoundingClientRect=()=>({bottom:0});
+  document.querySelector('#workspace .editor-toolbar').getBoundingClientRect=()=>({bottom:61});
+  window.dispatchEvent(new window.Event('scroll'));await new Promise(resolve=>requestAnimationFrame(resolve));
+  assert.equal(document.getElementById('collapsedNote').hidden,false);
+  assert.equal(document.getElementById('collapsedTitle').textContent,'Test script');
+
+  let fullscreenElement=null;
+  Object.defineProperty(document,'fullscreenElement',{configurable:true,get:()=>fullscreenElement});
+  document.documentElement.requestFullscreen=async()=>{fullscreenElement=document.documentElement;};
+  document.exitFullscreen=async()=>{fullscreenElement=null;document.dispatchEvent(new window.Event('fullscreenchange'));};
+  document.getElementById('menuButton').click();document.getElementById('menuFocus').click();
+  assert.equal(document.body.classList.contains('focus-mode'),true);
+  assert.equal(document.getElementById('menuFocus').textContent,'Exit focus');
+  document.getElementById('menuButton').click();document.getElementById('menuFocus').click();
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(document.body.classList.contains('focus-mode'),false);
+  assert.equal(document.getElementById('menuFocus').textContent,'Focus');
+
   const field=()=>document.querySelector('#scriptEditor [data-script-editable]');
   field().textContent='INT. ROOM - DAY';field().dispatchEvent(new window.Event('input',{bubbles:true}));
   field().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
@@ -489,5 +517,10 @@ test('New Script uses private script storage and exposes screenplay controls wit
   document.getElementById('menuButton').click();document.getElementById('openExportMenu').click();
   assert.equal(document.getElementById('exportMenu').hidden,false);
   assert.deepEqual([...document.querySelectorAll('#exportMenu [data-export]')].map(button=>button.dataset.export),['fountain','pdf']);
+  assert.doesNotMatch(editorCSS,/selected::before/);
+  assert.match(editorCSS,/\.theme-options button\.selected \{[^}]*background:[^}]*color:/);
+  assert.match(editorCSS,/\.editor-app\.focus-mode \.floating-tools:hover select[^}]*opacity: 1/);
+  assert.match(editorCSS,/\.command-menu button\[hidden\][^}]*display: none/);
+  await new Promise(resolve=>setTimeout(resolve,150));
   dom.window.close();
 });

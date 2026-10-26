@@ -4,10 +4,10 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js?v=20261026-1';
-import {newScript, scriptToFountain} from './script-core.js?v=20261026-1';
-import {downloadScriptPdf} from './script-pdf.js?v=20261026-1';
-import {ScriptEditor} from './script-editor.js?v=20261026-1';
+} from './editor-core.js?v=20261026-2';
+import {newScript, scriptToFountain} from './script-core.js?v=20261026-2';
+import {downloadScriptPdf} from './script-pdf.js?v=20261026-2';
+import {ScriptEditor} from './script-editor.js?v=20261026-2';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
@@ -82,12 +82,12 @@ function updateDocumentCommands() {
 }
 function updateCollapsedHeader() {
   const collapsed=$('collapsedNote');
-  if(!note || $('workspace').hidden || !note.remoteSavedAt) {collapsed.hidden=true;return;}
+  if(!note || $('workspace').hidden) {collapsed.hidden=true;return;}
   const title=$('noteTitle'),toolbar=$('workspace').querySelector('.editor-toolbar');
   const scrolledPastTitle=title.getBoundingClientRect().bottom<=toolbar.getBoundingClientRect().bottom+8;
   collapsed.hidden=!scrolledPastTitle;
   if(!scrolledPastTitle) return;
-  $('collapsedTitle').textContent=title.value.trim()||'Untitled note';
+  $('collapsedTitle').textContent=title.value.trim()||`Untitled ${documentKind(note)}`;
   $('collapsedSubtitle').textContent=documentKind(note)==='note'?$('noteSubtitle').value.trim():'';
 }
 function localSnapshot() {
@@ -1166,10 +1166,10 @@ function exportScript(format) {
 async function toggleFocus() {
   const active=!document.body.classList.contains('focus-mode');
   document.body.classList.toggle('focus-mode',active);
-  $('exitFocus').hidden=!active;
+  $('menuFocus').textContent=active?'Exit focus':'Focus';
   if(active) {
     try {await document.documentElement.requestFullscreen();}
-    catch {document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;notice('Full screen is unavailable in this browser.',true);}
+    catch {document.body.classList.remove('focus-mode');$('menuFocus').textContent='Focus';notice('Full screen is unavailable in this browser.',true);}
   }
   else if(document.fullscreenElement) await document.exitFullscreen().catch(()=>{});
 }
@@ -1232,12 +1232,8 @@ $('deleteObject').addEventListener('click',()=>{
   if(id) {body.querySelector(`[data-object-id="${CSS.escape(id)}"]`)?.remove();delete note.objects[id];markChanged();}
   $('contentDialog').close();
 });
-$('exitFocus').addEventListener('click',()=>{
-  document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;
-  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
-});
 document.addEventListener('fullscreenchange',()=>{
-  if(!document.fullscreenElement) {document.body.classList.remove('focus-mode');$('exitFocus').hidden=true;}
+  if(!document.fullscreenElement) {document.body.classList.remove('focus-mode');$('menuFocus').textContent='Focus';}
 });
 window.addEventListener('scroll',()=>requestAnimationFrame(updateCollapsedHeader),{passive:true});
 window.addEventListener('resize',()=>requestAnimationFrame(()=>{
