@@ -2,8 +2,8 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js';
+} from './script-core.js?v=20261026-1';
+import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261026-1';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
