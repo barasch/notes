@@ -2,8 +2,8 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261026-2';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261026-2';
+} from './script-core.js?v=20261027-3';
+import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261027-3';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -98,14 +98,16 @@ export class ScriptEditor {
     return {cue,continued:display.slice(cue.length)};
   }
 
-  editable(block,{text=block.text,start=0,end=block.text.length,className='',style=''}={}) {
+  editable(block,{text=block.text,start=0,end=block.text.length,className='',position=null}={}) {
     const field=this.ownerDocument.createElement('div');
     field.className=`script-text ${className}`.trim();field.contentEditable='true';
     field.spellcheck=!['scene','character','transition'].includes(block.type);
     field.dataset.scriptEditable='true';field.dataset.blockId=block.id;
     field.dataset.sourceStart=String(start);field.dataset.sourceEnd=String(end);
     field.setAttribute('role','textbox');field.setAttribute('aria-label',`${block.type} text`);
-    if(style)field.setAttribute('style',style);
+    // Setting individual CSSOM properties remains compatible with the Writer's
+    // strict style-src policy; assigning a complete style attribute does not.
+    if(position)Object.assign(field.style,position);
     field.textContent=text || '';
     return field;
   }
@@ -182,7 +184,7 @@ export class ScriptEditor {
         const text=block.type==='character'?stripManualContinued(block.text).trim().toUpperCase():block.text.slice(start,end);
         const field=this.editable(block,{text,start:block.type==='character'?0:start,end:block.type==='character'?block.text.length:end,
           className:`script-line script-${block.type}`,
-          style:`left:${left}pt;top:${first.y}pt;width:${elementWidth(block.type,dual)}pt;min-height:${items.length*SCRIPT_LAYOUT.lineHeight}pt`});
+          position:{left:`${left}pt`,top:`${first.y}pt`,width:`${elementWidth(block.type,dual)}pt`,minHeight:`${items.length*SCRIPT_LAYOUT.lineHeight}pt`}});
         sheet.append(field);
         if(block.type==='character') {
           const display=displayCharacterCue(this.document.blocks,this.blockIndex(block.id),{pageContinued:first.generatedContinued});

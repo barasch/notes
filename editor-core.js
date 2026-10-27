@@ -1,4 +1,4 @@
-import {validateScript} from './script-core.js?v=20261026-2';
+import {validateScript} from './script-core.js?v=20261027-3';
 
 export const PUBLIC_REPOSITORY = 'barasch/notes';
 export const DRAFT_REPOSITORY = 'barasch/writer-private';

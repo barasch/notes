@@ -520,6 +520,7 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.doesNotMatch(editorCSS,/selected::before/);
   assert.match(editorCSS,/\.theme-options button\.selected \{[^}]*background:[^}]*color:/);
   assert.match(editorCSS,/\.editor-app\.focus-mode \.floating-tools:hover select[^}]*opacity: 1/);
+  assert.match(editorCSS,/\.editor-app\.focus-mode \.edit-title[^}]*display: none/);
   assert.match(editorCSS,/\.command-menu button\[hidden\][^}]*display: none/);
   await new Promise(resolve=>setTimeout(resolve,150));
   dom.window.close();

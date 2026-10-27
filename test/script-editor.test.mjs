@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {JSDOM} from 'jsdom';
 import {ScriptEditor} from '../script-editor.js';
 import {newScript, newScriptBlock} from '../script-core.js';
+
+const scriptEditorSource=readFileSync(new URL('../script-editor.js',import.meta.url),'utf8');
 
 function environment(view='pageless') {
   const dom=new JSDOM('<!doctype html><select id="styles"></select><main id="editor"></main><nav id="scenes"></nav>',{url:'https://example.test/editor.html',pretendToBeVisual:true});
@@ -25,6 +28,8 @@ test('ScriptEditor defaults to Page view and keeps the empty element created by 
   assert.equal(script.blocks[1].type,'action');
   field=document.querySelector(`[data-script-editable][data-block-id="${script.blocks[1].id}"]`);
   assert.ok(field,'the empty next element remains visible in Page view');
+  assert.notEqual(field.style.left,'');assert.notEqual(field.style.top,'');
+  assert.doesNotMatch(scriptEditorSource,/setAttribute\(['"]style['"]/,'page positions must not use CSP-blocked style attributes');
   assert.deepEqual(editor.caret,{blockId:script.blocks[1].id,offset:0});
   editor.setView('pageless');assert.ok(document.querySelector('.script-pageless-view .script-continuous'));
   editor.setView('page');assert.ok(document.querySelector('.script-page-view .script-page'));

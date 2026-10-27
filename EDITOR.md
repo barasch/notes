@@ -82,9 +82,10 @@ There is intentionally no title page, Script publishing, RTF export, or Note exp
 
 ## Saving and privacy
 
-Focus enters full screen and leaves only the menu icon visible; hovering or focusing
-the control reveals the style selector. Choose **Exit focus** in the menu or press
-Escape to return to the full interface. Local recovery is encrypted in this browser's site storage around one second
+Focus enters full screen, hides the header and document title area, and leaves only the
+menu icon visible; hovering or focusing the control reveals the style selector. Choose
+**Exit focus** in the menu or press Escape to return to the full interface. Local
+recovery is encrypted in this browser's site storage around one second
 after a pause, or at least every five seconds during continuous typing. The circle's
 border is green once recovered, yellow while changes are pending, and red with a
 warning if recovery fails or is overdue. Local recovery includes images, but it is

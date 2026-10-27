@@ -69,7 +69,7 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 .collapsed-title, .collapsed-subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .collapsed-title { flex: 0 1 auto; color: var(--ink); font-family: et-book, Palatino, Georgia, serif; font-size: 1.15rem; }
 .collapsed-subtitle { flex: 1 1 auto; color: var(--muted); font-family: et-book, Palatino, Georgia, serif; font-size: .95rem; font-style: italic; }
-.editor-app.focus-mode .editor-toolbar, .editor-app.focus-mode .remote-stamp { display: none; }
+.editor-app.focus-mode .editor-toolbar, .editor-app.focus-mode .remote-stamp, .editor-app.focus-mode .edit-title, .editor-app.focus-mode #subtitleField { display: none; }
 .editor-app.focus-mode .editor-paper { padding-top: clamp(4rem, 8vw, 6rem); }
 .editor-app.focus-mode .floating-tools { gap: 0; padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
 .editor-app.focus-mode .floating-tools select { width: 0; max-width: 0; padding-right: 0; padding-left: 0; opacity: 0; pointer-events: none; transition: width .16s, max-width .16s, opacity .16s, padding .16s; }
