@@ -22,6 +22,7 @@ test('ScriptEditor defaults to Page view and keeps the empty element created by 
   editor.load(script);
   assert.equal(editor.view,'page');
   assert.ok(document.querySelector('.script-page-view .script-page'));
+  assert.equal(document.querySelector('.script-page-number').textContent,'1.');
   let field=document.querySelector('[data-script-editable]');
   field.textContent='INT. ROOM - DAY';placeCaret(field);field.dispatchEvent(new window.Event('input',{bubbles:true}));
   key(field,'Enter');
@@ -96,5 +97,48 @@ test('ScriptEditor renders complete adjacent dialogue runs in two pageless lanes
   assert.equal(pair.querySelectorAll('.dual-left .script-dialogue').length,1);
   assert.equal(pair.querySelectorAll('.dual-right .script-dialogue').length,1);
   assert.equal(document.querySelectorAll('.script-continuous > .script-dialogue').length,0);
+  dom.window.close();
+});
+
+test('Pageless focus treats directions as dialogue and both sides of dual dialogue as one unit',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[
+    newScriptBlock('action','Before.'),
+    newScriptBlock('character','JOHN (V.O.)'),newScriptBlock('parenthetical','(quietly)'),newScriptBlock('dialogue','The left line.'),
+    {...newScriptBlock('character','MARY (O.S.)'),dualWithPrevious:true},newScriptBlock('parenthetical','(overlapping)'),newScriptBlock('dialogue','The right line.'),
+    newScriptBlock('transition','CUT TO:'),
+  ];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);editor.setFocusMode(true);
+  const rightDialogue=document.querySelector(`[data-block-id="${script.blocks[6].id}"] [data-script-editable]`);
+  let centered=0;rightDialogue.scrollIntoView=options=>{assert.equal(options.block,'center');centered++;};
+  placeCaret(rightDialogue);rightDialogue.click();
+  assert.ok(centered>0);
+  assert.deepEqual(
+    [...document.querySelectorAll('.script-block.focus-active')].map(element=>element.dataset.blockId),
+    script.blocks.slice(1,7).map(block=>block.id),
+  );
+  assert.equal(document.querySelector(`[data-block-id="${script.blocks[0].id}"]`).classList.contains('focus-active'),false);
+  assert.equal(document.querySelector(`[data-block-id="${script.blocks[7].id}"]`).classList.contains('focus-active'),false);
+
+  const action=document.querySelector(`[data-block-id="${script.blocks[0].id}"] [data-script-editable]`);
+  placeCaret(action);action.click();
+  assert.deepEqual([...document.querySelectorAll('.script-block.focus-active')].map(element=>element.dataset.blockId),[script.blocks[0].id]);
+  editor.setView('page');
+  assert.equal(document.querySelectorAll('.focus-active').length,0,'element dimming is limited to Pageless focus');
+  dom.window.close();
+});
+
+test('Enter recenters the newly active element in Pageless focus',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[newScriptBlock('action','One.')];
+  let centeredId='';
+  dom.window.HTMLElement.prototype.scrollIntoView=function(options){assert.equal(options.block,'center');centeredId=this.dataset.blockId||centeredId;};
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const field=document.querySelector('[data-script-editable]');placeCaret(field);editor.setFocusMode(true);centeredId='';
+  key(field,'Enter');
+  assert.equal(centeredId,script.blocks[1].id);
+  assert.equal(document.querySelector('.script-block.focus-active').dataset.blockId,script.blocks[1].id);
   dom.window.close();
 });

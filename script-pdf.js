@@ -34,13 +34,17 @@ export function buildScriptPdf(pageModel) {
   const pageRefs=[];
   add(1,'<< /Type /Catalog /Pages 2 0 R >>');
   add(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>');
+  add(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Courier-Bold /Encoding /WinAnsiEncoding >>');
   for(let index=0;index<pageModel.pages.length;index++) {
-    const pageNumber=4+index*2,contentNumber=pageNumber+1;
+    const pageNumber=5+index*2,contentNumber=pageNumber+1;
     pageRefs.push(`${pageNumber} 0 R`);
     const page=pageModel.pages[index];
     const commands=['BT','/F1 12 Tf'];
+    let font='F1';
     for(const item of page.items) {
       if(!item.text) continue;
+      const itemFont=item.type==='scene'?'F2':'F1';
+      if(itemFont!==font){commands.push(`/${itemFont} 12 Tf`);font=itemFont;}
       const x=Number(item.x||0).toFixed(2);
       const y=(pageModel.layout.pageHeight-Number(item.y||0)).toFixed(2);
       commands.push(`1 0 0 1 ${x} ${y} Tm (${pdfLiteral(item.text)}) Tj`);
@@ -48,7 +52,7 @@ export function buildScriptPdf(pageModel) {
     commands.push('ET');
     const stream=`${commands.join('\n')}\n`;
     add(contentNumber,`<< /Length ${stream.length} >>\nstream\n${stream}endstream`);
-    add(pageNumber,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageModel.layout.pageWidth} ${pageModel.layout.pageHeight}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentNumber} 0 R >>`);
+    add(pageNumber,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageModel.layout.pageWidth} ${pageModel.layout.pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentNumber} 0 R >>`);
   }
   add(2,`<< /Type /Pages /Kids [${pageRefs.join(' ')}] /Count ${pageRefs.length} >>`);
   let document='%PDF-1.4\n%\x80\x81\x82\x83\n';

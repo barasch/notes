@@ -466,6 +466,8 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.ok(document.getElementById('scriptEditor').classList.contains('script-page-view'));
   assert.equal(document.querySelector('[data-script-view=page]').classList.contains('selected'),true);
   assert.equal(document.querySelector('[data-script-view=pageless]').classList.contains('selected'),false);
+  assert.deepEqual([...document.querySelectorAll('button[data-theme]')].map(button=>button.textContent),['Light','System','Dark']);
+  assert.deepEqual([...document.querySelectorAll('[data-script-view]')].map(button=>button.textContent),['Page view','Pageless']);
   assert.deepEqual([...document.getElementById('styleSelector').options].map(option=>option.value),['act','scene','action','character','parenthetical','dialogue','transition']);
 
   document.getElementById('menuButton').click();document.querySelector('[data-script-view=pageless]').click();
@@ -489,10 +491,13 @@ test('New Script uses private script storage and exposes screenplay controls wit
   document.getElementById('menuButton').click();document.getElementById('menuFocus').click();
   assert.equal(document.body.classList.contains('focus-mode'),true);
   assert.equal(document.getElementById('menuFocus').textContent,'Exit focus');
-  document.getElementById('menuButton').click();document.getElementById('menuFocus').click();
+  assert.equal(document.getElementById('menuScenes').textContent,'Show scene list');
+  document.getElementById('menuButton').click();document.getElementById('menuScenes').click();
   await new Promise(resolve=>setTimeout(resolve,0));
   assert.equal(document.body.classList.contains('focus-mode'),false);
   assert.equal(document.getElementById('menuFocus').textContent,'Focus');
+  assert.equal(document.getElementById('sceneRail').hidden,false);
+  assert.equal(document.getElementById('menuScenes').textContent,'Hide scene list');
 
   const field=()=>document.querySelector('#scriptEditor [data-script-editable]');
   field().textContent='INT. ROOM - DAY';field().dispatchEvent(new window.Event('input',{bubbles:true}));
@@ -518,9 +523,15 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.equal(document.getElementById('exportMenu').hidden,false);
   assert.deepEqual([...document.querySelectorAll('#exportMenu [data-export]')].map(button=>button.dataset.export),['fountain','pdf']);
   assert.doesNotMatch(editorCSS,/selected::before/);
-  assert.match(editorCSS,/\.theme-options button\.selected \{[^}]*background:[^}]*color:/);
+  assert.match(editorCSS,/\.appearance-options button\.selected \{[^}]*background:[^}]*color:/);
+  assert.match(editorCSS,/\.theme-options \{[^}]*repeat\(3,[^}]*\}/);
+  assert.match(editorCSS,/\.view-options \{[^}]*repeat\(2,[^}]*\}/);
   assert.match(editorCSS,/\.editor-app\.focus-mode \.floating-tools:hover select[^}]*opacity: 1/);
   assert.match(editorCSS,/\.editor-app\.focus-mode \.edit-title[^}]*display: none/);
+  assert.match(editorCSS,/\.editor-app\.focus-mode\.script-document \.script-editor[^}]*margin-right: auto;[^}]*margin-left: auto/);
+  assert.match(editorCSS,/\.script-scene \{[^}]*font-weight: bold/);
+  assert.match(editorCSS,/\.script-page \.script-scene \{[^}]*font-weight: bold/);
+  assert.match(editorCSS,/\.script-pageless-view\.script-focus-mode \.script-block \{[^}]*opacity: \.15/);
   assert.match(editorCSS,/\.command-menu button\[hidden\][^}]*display: none/);
   await new Promise(resolve=>setTimeout(resolve,150));
   dom.window.close();

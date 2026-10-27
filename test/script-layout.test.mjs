@@ -10,12 +10,12 @@ test('line wrapping is deterministic and respects explicit line breaks',()=>{
   assert.deepEqual(wrapScriptText('one\ntwo',20).map(line=>line.text),['one','two']);
 });
 
-test('editing pagination can expose empty elements without adding them to export pagination',()=>{
+test('every page is numbered while editing pagination can expose empty elements',()=>{
   const script=newScript();
   const exported=paginateScript(script),editing=paginateScript(script,{includeEmpty:true});
-  assert.equal(exported.pages[0].items.length,0);
-  assert.equal(editing.pages[0].items.length,1);
-  assert.equal(editing.pages[0].items[0].type,'scene');
+  assert.deepEqual(exported.pages[0].items.map(item=>item.type),['page-number']);
+  assert.deepEqual(editing.pages[0].items.map(item=>item.type),['page-number','scene']);
+  assert.equal(editing.pages[0].items[0].text,'1.');
 });
 
 test('acts start pages and transitions remain with following scenes',()=>{
@@ -36,6 +36,8 @@ test('dialogue split across pages receives generated MORE and CONT\'D',()=>{
   const result=paginateScript(script);
   const items=result.pages.flatMap(page=>page.items);
   assert.ok(result.pageCount>1);
+  assert.ok(result.pages.every(page=>page.items.filter(item=>item.type==='page-number').length===1));
+  assert.deepEqual(result.pages.map(page=>page.items.find(item=>item.type==='page-number').text),result.pages.map(page=>`${page.number}.`));
   assert.ok(items.some(item=>item.type==='more'&&item.text==='(MORE)'));
   assert.ok(items.some(item=>item.type==='character'&&item.text==="ALICE (CONT'D)"));
 });
