@@ -4,10 +4,10 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js?v=20261027-3';
-import {newScript, scriptToFountain} from './script-core.js?v=20261027-3';
-import {downloadScriptPdf} from './script-pdf.js?v=20261027-3';
-import {ScriptEditor} from './script-editor.js?v=20261027-3';
+} from './editor-core.js?v=20261027-4';
+import {newScript, scriptToFountain} from './script-core.js?v=20261027-4';
+import {downloadScriptPdf} from './script-pdf.js?v=20261027-4';
+import {ScriptEditor} from './script-editor.js?v=20261027-4';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
@@ -379,6 +379,7 @@ function styleOptions(kind) {
 
 function updateWorkspaceMode() {
   const script=documentKind(note)==='script';
+  document.body.classList.toggle('script-document',script);
   $('paper').classList.toggle('script-mode',script);
   $('subtitleField').hidden=script;
   body.hidden=script;body.contentEditable=String(!script);
@@ -388,13 +389,19 @@ function updateWorkspaceMode() {
   $('openExportMenu').hidden=!script;$('insertCommandGroup').hidden=script;$('scriptViewOptions').hidden=!script;
   styleOptions(script?'script':'note');
   if(script) {
-    $('menuScenes').textContent=scriptEditor.scenesVisible?'Hide scenes':'Show scenes';
+    updateSceneCommand();
     for(const button of document.querySelectorAll('[data-script-view]')) {
       const active=button.dataset.scriptView===scriptEditor.view;
       button.classList.toggle('selected',active);button.setAttribute('aria-checked',String(active));
     }
   } else $('sceneRail').hidden=true;
   updateDocumentCommands();
+}
+
+function updateSceneCommand() {
+  if(documentKind(note)!=='script')return;
+  const focused=document.body.classList.contains('focus-mode');
+  $('menuScenes').textContent=focused||!scriptEditor.scenesVisible?'Show scene list':'Hide scene list';
 }
 
 function loadNote(next,locallySaved=false) {
@@ -1166,10 +1173,15 @@ function exportScript(format) {
 async function toggleFocus() {
   const active=!document.body.classList.contains('focus-mode');
   document.body.classList.toggle('focus-mode',active);
+  scriptEditor.setFocusMode(active&&documentKind(note)==='script');
   $('menuFocus').textContent=active?'Exit focus':'Focus';
+  updateSceneCommand();
   if(active) {
     try {await document.documentElement.requestFullscreen();}
-    catch {document.body.classList.remove('focus-mode');$('menuFocus').textContent='Focus';notice('Full screen is unavailable in this browser.',true);}
+    catch {
+      document.body.classList.remove('focus-mode');scriptEditor.setFocusMode(false);
+      $('menuFocus').textContent='Focus';updateSceneCommand();notice('Full screen is unavailable in this browser.',true);
+    }
   }
   else if(document.fullscreenElement) await document.exitFullscreen().catch(()=>{});
 }
@@ -1210,7 +1222,10 @@ function handleCommandClick(event) {
   if(command.dataset.command==='publish') publish().catch(error=>notice(error.message,true));
   if(command.dataset.command==='dual') {scriptEditor.toggleDual();updateDocumentCommands();}
   if(command.dataset.command==='scenes') {
-    const visible=scriptEditor.toggleScenes();$('menuScenes').textContent=visible?'Hide scenes':'Show scenes';
+    const focused=document.body.classList.contains('focus-mode');
+    if(focused)toggleFocus().catch(error=>notice(error.message,true));
+    if(focused)scriptEditor.setScenesVisible(true);else scriptEditor.toggleScenes();
+    updateSceneCommand();
   }
   if(command.dataset.command==='focus') toggleFocus().catch(error=>notice(error.message,true));
   if(command.dataset.command==='replace-token') openDialog('token');
@@ -1233,7 +1248,10 @@ $('deleteObject').addEventListener('click',()=>{
   $('contentDialog').close();
 });
 document.addEventListener('fullscreenchange',()=>{
-  if(!document.fullscreenElement) {document.body.classList.remove('focus-mode');$('menuFocus').textContent='Focus';}
+  if(!document.fullscreenElement) {
+    document.body.classList.remove('focus-mode');scriptEditor.setFocusMode(false);
+    $('menuFocus').textContent='Focus';updateSceneCommand();
+  }
 });
 window.addEventListener('scroll',()=>requestAnimationFrame(updateCollapsedHeader),{passive:true});
 window.addEventListener('resize',()=>requestAnimationFrame(()=>{

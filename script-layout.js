@@ -1,6 +1,6 @@
 import {
   dialogueRunAt, displayCharacterCue, previousDialogueRun, validateScript,
-} from './script-core.js?v=20261027-3';
+} from './script-core.js?v=20261027-4';
 
 export const SCRIPT_LAYOUT = Object.freeze({
   pageWidth: 612,
@@ -95,7 +95,7 @@ export function paginateScript(source,{includeEmpty=false}={}) {
   let page,row;
   const newPage=()=>{
     page={number:pages.length+1,items:[]};pages.push(page);row=0;
-    if(page.number>1) page.items.push({type:'page-number',text:`${page.number}.`,x:540,row:-3,y:36,generated:true});
+    page.items.push({type:'page-number',text:`${page.number}.`,x:540,row:-3,y:36,generated:true});
   };
   const remaining=()=>SCRIPT_LAYOUT.linesPerPage-row;
   const ensure=(lines,{fresh=false}={})=>{

@@ -18,6 +18,9 @@ test('PDF export uses the shared page model and selectable Courier text',()=>{
   assert.match(pdf,/^%PDF-1\.4/);
   assert.match(pdf,new RegExp(`/Count ${layout.pageCount} \\>\\>`));
   assert.match(pdf,/\/BaseFont \/Courier/);
+  assert.match(pdf,/\/BaseFont \/Courier-Bold/);
+  assert.match(pdf,/\/F2 12 Tf\n1 0 0 1 [^\n]+ \(INT\. ROOM - DAY\) Tj/);
+  assert.match(pdf,/\(1\.\) Tj/);
   assert.match(pdf,/\(INT\. ROOM - DAY\) Tj/);
   assert.match(pdf,/xref\n0 /);
 });

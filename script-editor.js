@@ -2,8 +2,8 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261027-3';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261027-3';
+} from './script-core.js?v=20261027-4';
+import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261027-4';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -44,9 +44,12 @@ export class ScriptEditor {
     try {this.scenesVisible=localStorage.getItem('writer-script-scenes')!=='hidden';}
     catch {this.scenesVisible=true;}
     this.suggestion=null;this.renderTimer=null;this.caret=null;
+    this.focusMode=false;this.focusKey='';this.recenterOnRender=false;
     container.addEventListener('input',event=>this.handleInput(event));
     container.addEventListener('keydown',event=>this.handleKeydown(event));
     container.addEventListener('click',event=>this.handleClick(event));
+    container.addEventListener('focusin',event=>this.focusChanged(event));
+    sceneRail?.addEventListener('click',event=>this.handleClick(event));
     this.selectionListener=()=>this.selectionChanged();
     this.ownerDocument.addEventListener('selectionchange',this.selectionListener);
   }
@@ -90,6 +93,7 @@ export class ScriptEditor {
     this.container.classList.toggle('script-pageless-view',this.view!=='page');
     if(this.view==='page')this.renderPages(); else this.renderPageless();
     this.renderScenes();this.caret=saved;this.restoreCaret(saved);
+    this.updateFocusUnit(this.activeElement(),{recenter:this.recenterOnRender});this.recenterOnRender=false;
   }
 
   authoredCue(block,index) {
@@ -229,7 +233,7 @@ export class ScriptEditor {
     const block=this.block(field.dataset.blockId),start=Number(field.dataset.sourceStart||0);
     const offset=start+caretOffset(field);
     block.text=block.text.slice(0,offset)+text+block.text.slice(offset);
-    this.caret={blockId:block.id,offset:offset+text.length};this.onChange();this.render(true);
+    this.caret={blockId:block.id,offset:offset+text.length};this.recenterOnRender=true;this.onChange();this.render(true);
   }
 
   handleKeydown(event) {
@@ -249,7 +253,7 @@ export class ScriptEditor {
       const offset=Number(field.dataset.sourceStart||0)+caretOffset(field);
       const before=block.text.slice(0,offset),after=block.text.slice(offset);block.text=before;
       const next=newScriptBlock(nextScriptType(block.type),after);
-      this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.onChange();this.render(true);return;
+      this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.recenterOnRender=true;this.onChange();this.render(true);return;
     }
     if(event.key==='ArrowUp'||event.key==='ArrowDown')return;
   }
@@ -305,12 +309,56 @@ export class ScriptEditor {
     if(suggestion){const field=this.suggestion?.field;if(field)this.acceptSuggestion(field,suggestion.dataset.value);return;}
     const scene=event.target.closest('[data-scene-id]');
     if(scene){const field=this.container.querySelector(`[data-script-editable][data-block-id="${CSS.escape(scene.dataset.sceneId)}"]`);field?.scrollIntoView({block:'center'});field?.focus();}
+    const field=event.target.closest('[data-script-editable]');
+    if(field)this.updateFocusUnit(field,{recenter:true});
   }
 
   selectionChanged() {
     const field=this.activeElement();if(!field||!this.container.contains(field))return;
     const block=this.block(field.dataset.blockId);if(!block)return;
+    const key=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
+    this.updateFocusUnit(field,{recenter:this.focusMode&&this.view==='pageless'&&key!==this.focusKey});
     this.styleSelector.value=block.type;this.onSelection(block.type,this.canToggleDual());
+  }
+
+  focusChanged(event) {
+    const field=event.target.closest?.('[data-script-editable]');if(!field)return;
+    const key=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
+    this.updateFocusUnit(field,{recenter:this.focusMode&&this.view==='pageless'&&key!==this.focusKey});
+  }
+
+  focusUnitIds(field) {
+    const index=this.blockIndex(field?.dataset.blockId);if(index<0)return [];
+    const character=this.dialogueCharacterIndex(index);
+    if(character<0)return [this.document.blocks[index].id];
+    const run=dialogueRunAt(this.document.blocks,character);
+    if(!run)return [this.document.blocks[index].id];
+    const runs=[run],characterBlock=this.document.blocks[character];
+    if(characterBlock.dualWithPrevious) {
+      const left=previousDialogueRun(this.document.blocks,character);if(left)runs.unshift(left);
+    } else {
+      const rightCharacter=run.end+1,right=this.document.blocks[rightCharacter];
+      const rightRun=right?.dualWithPrevious?dialogueRunAt(this.document.blocks,rightCharacter):null;
+      if(rightRun&&previousDialogueRun(this.document.blocks,rightCharacter)?.start===run.start)runs.push(rightRun);
+    }
+    return runs.flatMap(item=>this.document.blocks.slice(item.start,item.end+1).map(block=>block.id));
+  }
+
+  updateFocusUnit(field,{recenter=false}={}) {
+    for(const element of this.container.querySelectorAll('.focus-active'))element.classList.remove('focus-active');
+    if(!this.focusMode||this.view!=='pageless'||!field) {this.focusKey='';return;}
+    const ids=new Set(this.focusUnitIds(field));
+    for(const wrapper of this.container.querySelectorAll('.script-block[data-block-id]')) {
+      wrapper.classList.toggle('focus-active',ids.has(wrapper.dataset.blockId));
+    }
+    this.focusKey=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
+    if(recenter)field.scrollIntoView?.({block:'center',inline:'nearest'});
+  }
+
+  setFocusMode(active) {
+    this.focusMode=Boolean(active);this.container.classList.toggle('script-focus-mode',this.focusMode);
+    const field=this.activeElement()||this.container.querySelector('[data-script-editable]');
+    this.updateFocusUnit(field,{recenter:this.focusMode&&this.view==='pageless'});
   }
 
   setStyle(type) {
@@ -358,8 +406,12 @@ export class ScriptEditor {
     this.caret=this.captureCaret();this.view=view;try{localStorage.setItem('writer-script-view',view);}catch{}this.render(true);
   }
 
+  setScenesVisible(visible) {
+    this.scenesVisible=Boolean(visible);try{localStorage.setItem('writer-script-scenes',this.scenesVisible?'shown':'hidden');}catch{}this.renderScenes();return this.scenesVisible;
+  }
+
   toggleScenes() {
-    this.scenesVisible=!this.scenesVisible;try{localStorage.setItem('writer-script-scenes',this.scenesVisible?'shown':'hidden');}catch{}this.renderScenes();return this.scenesVisible;
+    return this.setScenesVisible(!this.scenesVisible);
   }
 
   pageModel() { this.lastPageModel=paginateScript(this.document);return this.lastPageModel; }
