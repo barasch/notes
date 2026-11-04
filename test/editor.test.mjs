@@ -8,7 +8,7 @@ import {
   smartQuote, smartApostrophePrefix, normalizeEmbedCode, sameDraftContent, editorBlockHTML,
 } from '../editor-core.js';
 
-const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://barasch.github.io/notes/editor.html'});
+const dom=new JSDOM('<!doctype html><html><body></body></html>',{url:'https://barasch.github.io/notes/writer.html'});
 globalThis.document=dom.window.document;
 globalThis.DOMParser=dom.window.DOMParser;
 globalThis.indexedDB=indexedDB;
