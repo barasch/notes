@@ -449,7 +449,7 @@ function loadNote(next,locallySaved=false) {
   githubStamp();localState(locallySaved?'ok':'pending');warning();
   document.title=`${note.title || `New ${documentKind(note)}`} — Writer`;
   const query=note.slug?`?draft=${encodeURIComponent(note.slug)}&kind=${documentKind(note)}`:`?local=${encodeURIComponent(note.id)}`;
-  history.replaceState(null,'',`editor.html${query}`);
+  history.replaceState(null,'',`writer.html${query}`);
   requestAnimationFrame(()=>{resizeHeadingField($('noteTitle'));if(documentKind(note)==='note')resizeHeadingField($('noteSubtitle'));layoutNotes();});
   if(!locallySaved) saveLocal();
 }
@@ -461,7 +461,7 @@ async function showDashboard() {
   if(note) await flushLocal();
   view('dashboardView'); note=null;
   document.title='Writer';
-  history.replaceState(null,'','editor.html');
+  history.replaceState(null,'','writer.html');
   const list=$('draftList'); list.textContent='Loading drafts…';
   try {
     const [noteFiles,scriptFiles,local]=await Promise.all([
@@ -929,7 +929,7 @@ async function writeDraft() {
     if(await forkChangedTitle()) return;
     await ensureCreatedAt(note);
     await draftGithub.saveDraft(note);
-    githubStamp();history.replaceState(null,'',`editor.html?draft=${encodeURIComponent(note.slug)}&kind=${documentKind(note)}`);
+    githubStamp();history.replaceState(null,'',`writer.html?draft=${encodeURIComponent(note.slug)}&kind=${documentKind(note)}`);
     revision++;await saveLocal();
     notice('Draft saved to GitHub.');
   });
@@ -994,7 +994,7 @@ async function publish() {
     if(!forked) await draftGithub.saveDraft(note);
     await publicGithub.publish(note);
     githubStamp();revision++;await saveLocal();
-    notice(`Published: ${location.origin}${location.pathname.replace(/editor\.html$/,'')}${note.slug}.html`);
+    notice(`Published: ${location.origin}${location.pathname.replace(/writer\.html$/,'')}${note.slug}.html`);
   });
 }
 async function lock() {
