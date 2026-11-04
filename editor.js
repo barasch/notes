@@ -4,10 +4,10 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js?v=20261027-4';
-import {newScript, scriptToFountain} from './script-core.js?v=20261027-4';
-import {downloadScriptPdf} from './script-pdf.js?v=20261027-4';
-import {ScriptEditor} from './script-editor.js?v=20261027-4';
+} from './editor-core.js?v=20261104-1';
+import {newScript, scriptToFountain} from './script-core.js?v=20261104-1';
+import {downloadScriptPdf} from './script-pdf.js?v=20261104-1';
+import {ScriptEditor} from './script-editor.js?v=20261104-1';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
@@ -222,7 +222,7 @@ function selectStart(block) {
   const range=document.createRange();range.selectNodeContents(block);range.collapse(true);
   const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
   body.focus();retainRange();
-  $('styleSelector').value=block.tagName.toLowerCase();
+  setStyleValue(block.tagName.toLowerCase());
 }
 function restyleBlock(block,style) {
   if(block.tagName.toLowerCase()===style) return block;
@@ -250,7 +250,7 @@ function restyleBlock(block,style) {
     const next=document.createRange();next.setStart(...resolve(start));next.setEnd(...resolve(end));
     selection.removeAllRanges();selection.addRange(next);
   }
-  $('styleSelector').value=style;retainRange();markChanged();
+  setStyleValue(style);retainRange();markChanged();
   return replacement;
 }
 function advanceBlock(event) {
@@ -365,16 +365,48 @@ function openNote(noteId) {
 }
 const scriptEditor=new ScriptEditor({
   container:$('scriptEditor'),sceneRail:$('sceneRail'),styleSelector:$('styleSelector'),
-  onChange:()=>markChanged(),onSelection:()=>updateDocumentCommands(),
+  onChange:()=>markChanged(),onSelection:type=>{setStyleValue(type);updateDocumentCommands();},
 });
 
-function styleOptions(kind) {
-  const options=kind==='script'
+function styleDefinitions(kind) {
+  return kind==='script'
     ? [['act','Act'],['scene','Scene'],['action','Action'],['character','Character'],['parenthetical','Parenthetical'],['dialogue','Dialogue'],['transition','Transition']]
     : [['h2','Heading'],['h3','Subsection'],['p','Body']];
-  $('styleSelector').replaceChildren(...options.map(([value,label])=>{
-    const option=document.createElement('option');option.value=value;option.textContent=label;return option;
+}
+
+function setStyleValue(value) {
+  const selector=$('styleSelector'),option=$('styleMenu').querySelector(`[data-style="${CSS.escape(value)}"]`);
+  selector.value=value;
+  const label=option?.textContent||value;
+  $('styleSelectorLabel').textContent=label;selector.setAttribute('aria-label',`Paragraph style: ${label}`);
+  for(const button of $('styleMenu').querySelectorAll('[data-style]')) {
+    const selected=button.dataset.style===value;
+    button.classList.toggle('selected',selected);button.setAttribute('aria-selected',String(selected));
+  }
+}
+
+function styleOptions(kind) {
+  const options=styleDefinitions(kind);
+  $('styleMenu').replaceChildren(...options.map(([value,label])=>{
+    const option=document.createElement('button');option.type='button';option.role='option';option.dataset.style=value;option.textContent=label;return option;
   }));
+  setStyleValue(options[0][0]);
+}
+
+function openStyleMenu({edge='selected'}={}) {
+  closeCommandMenu();
+  const menu=$('styleMenu');menu.hidden=false;$('styleSelector').setAttribute('aria-expanded','true');
+  const options=[...menu.querySelectorAll('[data-style]')];
+  const target=edge==='first'?options[0]:edge==='last'?options.at(-1):options.find(option=>option.classList.contains('selected'))||options[0];
+  target?.focus();
+}
+function closeStyleMenu(restoreFocus=false) {
+  $('styleMenu').hidden=true;$('styleSelector').setAttribute('aria-expanded','false');
+  if(restoreFocus)$('styleSelector').focus();
+}
+function moveStyleMenuFocus(direction) {
+  const options=[...$('styleMenu').querySelectorAll('[data-style]')];if(!options.length)return;
+  const index=options.indexOf(document.activeElement),next=Math.max(0,Math.min(options.length-1,(index<0?0:index)+direction));options[next].focus();
 }
 
 function updateWorkspaceMode() {
@@ -1080,13 +1112,31 @@ document.addEventListener('selectionchange',()=>{
   retainRange();
   if(!body.contains(node)) return;
   const block=currentBlock();
-  if(block) $('styleSelector').value=block.tagName.toLowerCase();
+  if(block) setStyleValue(block.tagName.toLowerCase());
 });
-$('styleSelector').addEventListener('change',event=>{
-  if(documentKind(note)==='script') {scriptEditor.setStyle(event.target.value);return;}
-  restoreRange();
-  const block=currentBlock();
-  if(block) restyleBlock(block,event.target.value);
+$('styleSelector').addEventListener('pointerdown',retainRange);
+$('styleSelector').addEventListener('click',()=>{
+  if($('styleMenu').hidden)openStyleMenu();else closeStyleMenu(true);
+});
+$('styleSelector').addEventListener('keydown',event=>{
+  if(!['ArrowDown','ArrowUp','Home','End'].includes(event.key))return;
+  event.preventDefault();
+  openStyleMenu({edge:event.key==='End'?'last':event.key==='Home'?'first':'selected'});
+  if(event.key==='ArrowUp')moveStyleMenuFocus(-1);
+  if(event.key==='ArrowDown')moveStyleMenuFocus(1);
+});
+$('styleMenu').addEventListener('click',event=>{
+  const option=event.target.closest('[data-style]');if(!option)return;
+  const previous=$('styleSelector').value;let applied=false;
+  if(documentKind(note)==='script')applied=scriptEditor.setStyle(option.dataset.style);
+  else {restoreRange();const block=currentBlock();if(block){restyleBlock(block,option.dataset.style);applied=true;}}
+  setStyleValue(applied?option.dataset.style:previous);
+  closeStyleMenu();
+});
+$('styleMenu').addEventListener('keydown',event=>{
+  if(event.key==='ArrowDown'||event.key==='ArrowUp') {event.preventDefault();moveStyleMenuFocus(event.key==='ArrowDown'?1:-1);}
+  if(event.key==='Home'||event.key==='End') {event.preventDefault();const options=$('styleMenu').querySelectorAll('[data-style]');(event.key==='Home'?options[0]:options[options.length-1])?.focus();}
+  if(event.key==='Escape') {event.preventDefault();closeStyleMenu(true);}
 });
 function applyInlineFormat(command) {
   restoreRange();
@@ -1100,6 +1150,9 @@ function applyInlineFormat(command) {
   retainRange();
 }
 document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!$('styleMenu').hidden) {
+    event.preventDefault();closeStyleMenu(true);return;
+  }
   if(event.key==='Escape'&&!$('newDocumentMenu').hidden) {
     event.preventDefault();$('newDocumentMenu').hidden=true;$('newDocument').setAttribute('aria-expanded','false');$('newDocument').focus();return;
   }
@@ -1188,6 +1241,7 @@ async function toggleFocus() {
 
 $('menuButton').addEventListener('pointerdown',retainRange);
 $('menuButton').addEventListener('click',()=>{
+  closeStyleMenu();
   const menu=$('commandMenu');
   if(!menu.hidden||!$('insertMenu').hidden||!$('exportMenu').hidden) closeCommandMenu();
   else {menu.hidden=false;$('menuButton').setAttribute('aria-expanded','true');}
@@ -1236,6 +1290,7 @@ for(const button of document.querySelectorAll('#commandMenu button, #insertMenu 
 }
 document.addEventListener('click',event=>{
   if(!event.target.closest('.command-holder')) closeCommandMenu();
+  if(!event.target.closest('.style-menu-holder')) closeStyleMenu();
   if(!event.target.closest('.new-document-holder')) {
     $('newDocumentMenu').hidden=true;$('newDocument').setAttribute('aria-expanded','false');
   }

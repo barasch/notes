@@ -1,14 +1,23 @@
 body.editor-app { width: 100%; max-width: none; margin: 0; padding: 0; }
-body.editor-app button, body.editor-app input, body.editor-app select, body.editor-app textarea { font: inherit; }
+body.editor-app button, body.editor-app input, body.editor-app textarea { font: inherit; }
 body.editor-app button { cursor: pointer; }
 body.editor-app button:disabled { cursor: wait; opacity: .5; }
 .editor-shell { width: 87.5%; max-width: 1400px; margin: 0 auto; padding-left: 12.5%; }
 .editor-toolbar { position: sticky; z-index: 10; top: 0; box-sizing: border-box; display: flex; align-items: center; gap: 1.2rem; width: 100%; min-height: 61px; padding: 12px max(4%, calc((100vw - 1400px)/2 + 5%)); border-bottom: 1px solid var(--rule); background: var(--paper); font-family: var(--sans); }
 .editor-toolbar .site-wordmark { flex: none; margin-right: auto; }
 .floating-tools { position: fixed; z-index: 14; right: max(1.25rem, env(safe-area-inset-right)); bottom: max(1.25rem, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: .65rem; padding: .35rem; border: 1px solid var(--rule); border-radius: 24px; background: var(--paper); box-shadow: 0 5px 18px #0002; font-family: var(--sans); }
-.floating-tools select, .quiet-button { border: 0; background: transparent; color: var(--muted); font-family: var(--sans); font-size: .85rem; padding: .4rem .3rem; }
+.style-selector-button, .quiet-button { border: 0; background: transparent; color: var(--muted); font-family: var(--sans); font-size: .85rem; padding: .4rem .3rem; }
 .quiet-button:hover, .quiet-button:focus { color: var(--ink); }
-.floating-tools select { max-width: 12rem; }
+.style-menu-holder { position: relative; max-width: 12rem; }
+.style-selector-button { display: flex; align-items: center; justify-content: space-between; gap: .65rem; max-width: 12rem; white-space: nowrap; }
+.style-selector-button:hover, .style-selector-button:focus, .style-selector-button[aria-expanded="true"] { color: var(--ink); }
+.style-selector-button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.style-selector-button svg { flex: none; }
+.style-menu { position: absolute; z-index: 16; right: 0; bottom: calc(100% + 10px); box-sizing: border-box; min-width: max(100%, 12rem); padding: .35rem; border: 1px solid var(--rule); background: var(--paper); box-shadow: 0 12px 25px #0002; }
+.style-menu[hidden] { display: none; }
+.style-menu button { display: block; box-sizing: border-box; width: 100%; padding: .47rem .55rem; border: 0; background: transparent; color: var(--ink); text-align: left; font-family: var(--sans); font-size: .85rem; }
+.style-menu button:hover, .style-menu button:focus { background: var(--rule); }
+.style-menu button.selected { background: color-mix(in srgb, var(--accent) 16%, var(--paper)); color: var(--accent); }
 .command-holder { position: relative; }
 .menu-circle { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1.5px solid; border-radius: 50%; background: transparent; color: var(--ink); transition: border-color .18s; }
 .menu-circle svg { display: block; flex: none; }
@@ -79,9 +88,9 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 .editor-app.focus-mode.script-document .script-editor { box-sizing: border-box; width: 612pt; max-width: 100%; margin-right: auto; margin-left: auto; }
 .editor-app.focus-mode.script-document .script-page-view { justify-items: center; }
 .editor-app.focus-mode .floating-tools { gap: 0; padding: 0; border-color: transparent; background: transparent; box-shadow: none; }
-.editor-app.focus-mode .floating-tools select { width: 0; max-width: 0; padding-right: 0; padding-left: 0; opacity: 0; pointer-events: none; transition: width .16s, max-width .16s, opacity .16s, padding .16s; }
+.editor-app.focus-mode .style-menu-holder { width: 0; max-width: 0; opacity: 0; pointer-events: none; transition: width .16s, max-width .16s, opacity .16s; }
 .editor-app.focus-mode .floating-tools:hover, .editor-app.focus-mode .floating-tools:focus-within { gap: .65rem; padding: .35rem; border-color: var(--rule); background: var(--paper); box-shadow: 0 5px 18px #0002; }
-.editor-app.focus-mode .floating-tools:hover select, .editor-app.focus-mode .floating-tools:focus-within select { width: auto; max-width: 12rem; padding: .4rem .3rem; opacity: 1; pointer-events: auto; }
+.editor-app.focus-mode .floating-tools:hover .style-menu-holder, .editor-app.focus-mode .floating-tools:focus-within .style-menu-holder { width: auto; max-width: 12rem; opacity: 1; pointer-events: auto; }
 .gate { min-height: 100vh; padding: 18vh 1rem 3rem; box-sizing: border-box; }
 .gate[hidden], #workspace[hidden], #dashboardView[hidden] { display: none; }
 .gate-inner { max-width: 510px; margin: 0 auto; }
@@ -182,7 +191,7 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 @media (max-width: 760px) {
   .editor-shell { width: 88%; padding-left: 6%; padding-right: 6%; }
   .floating-tools { right: max(.75rem, env(safe-area-inset-right)); bottom: max(.75rem, env(safe-area-inset-bottom)); }
-  .floating-tools select { max-width: 8rem; }
+  .style-menu-holder, .style-selector-button { max-width: 8rem; }
   .collapsed-title { font-size: 1rem; }
   .collapsed-subtitle { display: none; }
   .script-editor { overflow-x: auto; }

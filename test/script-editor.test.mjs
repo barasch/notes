@@ -64,6 +64,30 @@ test('ScriptEditor follows the element cycle and keeps Act and Transition outsid
   dom.window.close();
 });
 
+test('Up and Down move between existing script elements while preserving Left and Right for text',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[
+    newScriptBlock('scene','INT. ROOM - DAY'),
+    newScriptBlock('action','John crosses the room.'),
+    newScriptBlock('character','JOHN'),
+  ];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  let field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field,4);
+  key(field,'ArrowUp');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[0].id);
+  assert.equal(editor.captureCaret().offset,4,'vertical navigation retains the caret column when possible');
+  field=editor.activeElement();key(field,'ArrowDown');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[1].id);
+  field=editor.activeElement();key(field,'ArrowDown');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id);
+  field=editor.activeElement();key(field,'ArrowRight');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'horizontal arrows remain within the active element');
+  key(field,'ArrowDown');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'navigation stops at the final element');
+  dom.window.close();
+});
+
 test('ScriptEditor autocompletes characters and authored extensions while removing manual CONT\'D',()=>{
   const dom=environment(),script=newScript();
   script.blocks=[
