@@ -5,7 +5,7 @@ import {JSDOM} from 'jsdom';
 import {indexedDB} from 'fake-indexeddb';
 import {utf8Base64, unlockCredential, createCredential, recoveryAll, editorBlockHTML, renderPublishedPage} from '../editor-core.js';
 
-const source=readFileSync(new URL('../editor.html',import.meta.url),'utf8');
+const source=readFileSync(new URL('../writer.html',import.meta.url),'utf8');
 const editorCSS=readFileSync(new URL('../editor.css',import.meta.url),'utf8');
 const tufteCSS=readFileSync(new URL('../tufte.css',import.meta.url),'utf8');
 const files=new Map();
@@ -72,7 +72,7 @@ async function until(predicate,timeout=3500) {
 }
 
 test('setup, encrypted local autosave, and reload require a passphrase without writing to GitHub',async()=>{
-  const first=page('https://barasch.github.io/notes/editor.html');
+  const first=page('https://barasch.github.io/notes/writer.html');
   await import('../editor.js?first');
   await until(()=>!document.getElementById('setupView').hidden);
   document.getElementById('setupToken').value='token-once';
@@ -196,7 +196,7 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
   const passphrase='a-separate-long-passphrase-for-keyboard-tests';
   const {record:encrypted}=await createCredential('token-for-keyboard-tests',passphrase);
   files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'keyboard-auth'});
-  const dom=page('https://barasch.github.io/notes/editor.html');
+  const dom=page('https://barasch.github.io/notes/writer.html');
   await import('../editor.js?keyboard');
   await until(()=>!document.getElementById('unlockView').hidden);
   document.getElementById('unlockPassphrase').value=passphrase;
@@ -285,7 +285,7 @@ test('floating controls, compact saved title, common shortcuts, and filename-bas
   const passphrase='a-third-long-passphrase-for-interface-tests';
   const {record:encrypted}=await createCredential('token-for-interface-tests',passphrase);
   files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'interface-auth'});
-  const dom=page('https://barasch.github.io/notes/editor.html');
+  const dom=page('https://barasch.github.io/notes/writer.html');
   const commands=[];document.execCommand=command=>{commands.push(command);return true;};
   await import('../editor.js?interface');
   await until(()=>!document.getElementById('unlockView').hidden);
@@ -389,7 +389,7 @@ test('external images have directly editable rich captions and side captions sta
   const passphrase='a-fourth-long-passphrase-for-image-tests';
   const {record:encrypted}=await createCredential('token-for-image-tests',passphrase);
   files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'image-auth'});
-  const dom=page('https://barasch.github.io/notes/editor.html');
+  const dom=page('https://barasch.github.io/notes/writer.html');
   const commands=[];document.execCommand=command=>{commands.push(command);return true;};
   await import('../editor.js?images');
   await until(()=>!document.getElementById('unlockView').hidden);
@@ -452,7 +452,7 @@ test('New Script uses private script storage and exposes screenplay controls wit
   const {record:encrypted}=await createCredential('token-for-script-tests',passphrase);
   files.set('editor-auth.json',{text:JSON.stringify(encrypted),sha:'script-auth'});
   const requestStart=apiRequests.length;
-  const dom=page('https://barasch.github.io/notes/editor.html');
+  const dom=page('https://barasch.github.io/notes/writer.html');
   await import('../editor.js?scripts');
   await until(()=>!document.getElementById('unlockView').hidden);
   document.getElementById('unlockPassphrase').value=passphrase;
