@@ -1,8 +1,8 @@
 # Writer
 
-Writer is a static page at `https://barasch.github.io/notes/editor.html`. It creates
+Writer is a static page at `https://barasch.github.io/notes/writer.html`. It creates
 Tufte-style Notes and screenplay-style Scripts. Existing handwritten HTML notes remain
-outside Writer. The public index does not link to Writer.
+outside Writer. The public Notes index links to Writer.
 
 ## One-time setup
 
