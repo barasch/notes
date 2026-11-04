@@ -77,6 +77,7 @@ body {
         --rule: #4e4e4e;
     }
 
+    :root:not([data-theme="light"]) .site-mark-link img,
     :root:not([data-theme="light"]) .site-wordmark img {
         filter: invert(1);
     }
@@ -90,7 +91,9 @@ body {
     --rule: #4e4e4e;
 }
 
+:root[data-theme="dark"] .site-mark-link img,
 :root[data-theme="dark"] .site-wordmark img { filter: invert(1); }
+:root[data-theme="light"] .site-mark-link img,
 :root[data-theme="light"] .site-wordmark img { filter: none; }
 
 h1 {
@@ -308,6 +311,19 @@ a:focus {
     font-weight: 400;
 }
 
+.site-identity {
+    align-items: center;
+    display: inline-flex;
+    gap: 9px;
+}
+
+.site-mark-link {
+    align-items: center;
+    display: inline-flex;
+    line-height: 1;
+    text-decoration: none;
+}
+
 .site-wordmark {
     align-items: center;
     display: inline-flex;
@@ -318,6 +334,7 @@ a:focus {
     text-decoration: none;
 }
 
+.site-mark-link img,
 .site-wordmark img {
     display: block;
     flex: none;
