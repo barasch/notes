@@ -2,8 +2,8 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261104-1';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261104-1';
+} from './script-core.js?v=20261104-2';
+import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?v=20261104-2';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -189,6 +189,7 @@ export class ScriptEditor {
         const field=this.editable(block,{text,start:block.type==='character'?0:start,end:block.type==='character'?block.text.length:end,
           className:`script-line script-${block.type}`,
           position:{left:`${left}pt`,top:`${first.y}pt`,width:`${elementWidth(block.type,dual)}pt`,minHeight:`${items.length*SCRIPT_LAYOUT.lineHeight}pt`}});
+        if(first.dualColumn)field.dataset.dualColumn=first.dualColumn;
         sheet.append(field);
         if(block.type==='character') {
           const display=displayCharacterCue(this.document.blocks,this.blockIndex(block.id),{pageContinued:first.generatedContinued});
@@ -236,13 +237,54 @@ export class ScriptEditor {
     this.caret={blockId:block.id,offset:offset+text.length};this.recenterOnRender=true;this.onChange();this.render(true);
   }
 
+  fieldLines(field) {
+    const block=this.block(field.dataset.blockId);
+    const dual=Boolean(field.closest('.dual-lane')||field.dataset.dualColumn);
+    const maxChars=dual?SCRIPT_LAYOUT.dual.chars:(SCRIPT_LAYOUT[block?.type]?.chars||SCRIPT_LAYOUT.action.chars);
+    return wrapScriptText(field.textContent,maxChars);
+  }
+
+  atVerticalBoundary(field,direction) {
+    const selection=this.window.getSelection();
+    if(!selection?.rangeCount||!selection.isCollapsed||!field.contains(selection.anchorNode))return false;
+    const range=selection.getRangeAt(0).cloneRange();
+    const caretRect=range.getClientRects?.()[0]||range.getBoundingClientRect?.();
+    const fieldRect=field.getBoundingClientRect?.();
+    if(caretRect?.height>0&&fieldRect?.height>0) {
+      const lineHeight=parseFloat(this.window.getComputedStyle(field).lineHeight)||caretRect.height;
+      const tolerance=Math.max(1,lineHeight*.25);
+      return direction<0?caretRect.top<=fieldRect.top+tolerance:caretRect.bottom>=fieldRect.bottom-tolerance;
+    }
+    const lines=this.fieldLines(field),offset=caretOffset(field);
+    return direction<0?offset<=lines[0].end:offset>=lines.at(-1).start;
+  }
+
+  verticalCaretColumn(field,direction) {
+    const lines=this.fieldLines(field),line=direction<0?lines[0]:lines.at(-1);
+    return Math.max(0,caretOffset(field)-line.start);
+  }
+
+  targetVerticalOffset(field,direction,column) {
+    const lines=this.fieldLines(field),line=direction<0?lines.at(-1):lines[0];
+    return line.start+Math.min(column,line.text.length);
+  }
+
   moveElement(field,direction) {
-    const index=this.blockIndex(field.dataset.blockId),targetIndex=index+direction;
-    if(index<0||targetIndex<0||targetIndex>=this.document.blocks.length)return false;
-    const targetBlock=this.document.blocks[targetIndex];
-    const candidates=[...this.container.querySelectorAll(`[data-script-editable][data-block-id="${CSS.escape(targetBlock.id)}"]`)];
-    const target=direction<0?candidates.at(-1):candidates[0];if(!target)return false;
-    const localOffset=Math.min(caretOffset(field),target.textContent.length);
+    const index=this.blockIndex(field.dataset.blockId);if(index<0)return false;
+    const column=this.verticalCaretColumn(field,direction);
+    const fragments=[...this.container.querySelectorAll(`[data-script-editable][data-block-id="${CSS.escape(field.dataset.blockId)}"]`)];
+    const fragmentIndex=fragments.indexOf(field);
+    let target=direction<0?fragments[fragmentIndex-1]:fragments[fragmentIndex+1];
+    let targetBlock=this.document.blocks[index];
+    if(!target) {
+      const targetIndex=index+direction;
+      if(targetIndex<0||targetIndex>=this.document.blocks.length)return false;
+      targetBlock=this.document.blocks[targetIndex];
+      const candidates=[...this.container.querySelectorAll(`[data-script-editable][data-block-id="${CSS.escape(targetBlock.id)}"]`)];
+      target=direction<0?candidates.at(-1):candidates[0];
+    }
+    if(!target)return false;
+    const localOffset=this.targetVerticalOffset(target,direction,column);
     setCaret(target,localOffset);
     this.caret={blockId:targetBlock.id,offset:Number(target.dataset.sourceStart||0)+localOffset};
     this.updateFocusUnit(target,{recenter:this.focusMode&&this.view==='pageless'});
@@ -270,7 +312,9 @@ export class ScriptEditor {
       this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.recenterOnRender=true;this.onChange();this.render(true);return;
     }
     if((event.key==='ArrowUp'||event.key==='ArrowDown')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
-      event.preventDefault();this.moveElement(field,event.key==='ArrowUp'?-1:1);return;
+      const direction=event.key==='ArrowUp'?-1:1;
+      if(this.atVerticalBoundary(field,direction)) {event.preventDefault();this.moveElement(field,direction);}
+      return;
     }
   }
 

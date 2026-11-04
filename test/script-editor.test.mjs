@@ -45,7 +45,8 @@ function placeCaret(field,offset=field.textContent.length) {
 }
 
 function key(field,key,options={}) {
-  field.dispatchEvent(new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
+  const event=new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options});
+  field.dispatchEvent(event);return event;
 }
 
 test('ScriptEditor follows the element cycle and keeps Act and Transition outside it',()=>{
@@ -85,6 +86,40 @@ test('Up and Down move between existing script elements while preserving Left an
   assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'horizontal arrows remain within the active element');
   key(field,'ArrowDown');
   assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'navigation stops at the final element');
+  dom.window.close();
+});
+
+test('Up and Down remain native within wrapped elements and cross only at the first or last visual line',()=>{
+  const dom=environment(),script=newScript();
+  const dialogue=`${'A'.repeat(35)} ${'B'.repeat(35)} ${'C'.repeat(10)}`;
+  script.blocks=[
+    newScriptBlock('character','JOHN'),
+    newScriptBlock('dialogue',dialogue),
+    newScriptBlock('action','John crosses the room.'),
+  ];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  let field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
+
+  placeCaret(field,5);
+  assert.equal(key(field,'ArrowDown').defaultPrevented,false,'Down remains native on the first of several visual lines');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[1].id);
+  key(field,'ArrowUp');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[0].id,'Up crosses from the first visual line');
+
+  field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
+  placeCaret(field,40);
+  assert.equal(key(field,'ArrowUp').defaultPrevented,false,'Up remains native on an interior visual line');
+  placeCaret(field,40);
+  assert.equal(key(field,'ArrowDown').defaultPrevented,false,'Down remains native on an interior visual line');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[1].id);
+
+  placeCaret(field,75);
+  assert.equal(key(field,'ArrowUp').defaultPrevented,false,'Up remains native on the last visual line');
+  placeCaret(field,75);
+  key(field,'ArrowDown');
+  assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'Down crosses from the last visual line');
+  assert.equal(editor.captureCaret().offset,3,'cross-element navigation preserves the visual column');
   dom.window.close();
 });
 
