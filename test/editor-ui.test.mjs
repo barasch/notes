@@ -212,9 +212,13 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
     window.getSelection().removeAllRanges();window.getSelection().addRange(range);
     document.dispatchEvent(new window.Event('selectionchange'));
   };
-  assert.deepEqual([...selector.options].map(option=>[option.value,option.textContent]),[
+  assert.equal(selector.tagName,'BUTTON','the style control is an app-styled button rather than a native select');
+  assert.deepEqual([...document.querySelectorAll('#styleMenu [data-style]')].map(option=>[option.dataset.style,option.textContent]),[
     ['h2','Heading'],['h3','Subsection'],['p','Body'],
   ]);
+  selector.click();assert.equal(document.getElementById('styleMenu').hidden,false);assert.equal(selector.getAttribute('aria-expanded'),'true');
+  document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));
+  assert.equal(document.getElementById('styleMenu').hidden,true);
   assert.equal(document.querySelectorAll('#menuButton svg path').length,1,'three lines share one uniform SVG stroke');
   title.value='A new note';key(title,'Enter');assert.equal(document.activeElement,subtitle);
   subtitle.value='A subtitle';key(subtitle,'Enter');
@@ -230,7 +234,7 @@ test('style shortcuts follow title, subtitle, heading, subsection, body; an end 
   key(body,'Tab',{shiftKey:true});assert.equal(body.lastElementChild.tagName,'H3');
   key(body,'Tab',{shiftKey:true});assert.equal(body.lastElementChild.tagName,'H2');
   key(body,'Tab');assert.equal(body.lastElementChild.tagName,'H3');
-  selector.value='p';selector.dispatchEvent(new window.Event('change',{bubbles:true}));
+  selector.click();document.querySelector('#styleMenu [data-style=p]').click();
   assert.equal(body.lastElementChild.tagName,'P');
   assert.equal(window.getSelection().anchorNode,body.lastElementChild,'the caret stays in the restyled empty block');
 
@@ -468,7 +472,7 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.equal(document.querySelector('[data-script-view=pageless]').classList.contains('selected'),false);
   assert.deepEqual([...document.querySelectorAll('button[data-theme]')].map(button=>button.textContent),['Light','System','Dark']);
   assert.deepEqual([...document.querySelectorAll('[data-script-view]')].map(button=>button.textContent),['Page view','Pageless']);
-  assert.deepEqual([...document.getElementById('styleSelector').options].map(option=>option.value),['act','scene','action','character','parenthetical','dialogue','transition']);
+  assert.deepEqual([...document.querySelectorAll('#styleMenu [data-style]')].map(option=>option.dataset.style),['act','scene','action','character','parenthetical','dialogue','transition']);
 
   document.getElementById('menuButton').click();document.querySelector('[data-script-view=pageless]').click();
   assert.ok(document.getElementById('scriptEditor').classList.contains('script-pageless-view'));
@@ -526,7 +530,8 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.match(editorCSS,/\.appearance-options button\.selected \{[^}]*background:[^}]*color:/);
   assert.match(editorCSS,/\.theme-options \{[^}]*repeat\(3,[^}]*\}/);
   assert.match(editorCSS,/\.view-options \{[^}]*repeat\(2,[^}]*\}/);
-  assert.match(editorCSS,/\.editor-app\.focus-mode \.floating-tools:hover select[^}]*opacity: 1/);
+  assert.match(editorCSS,/\.editor-app\.focus-mode \.floating-tools:hover \.style-menu-holder[^}]*opacity: 1/);
+  assert.match(editorCSS,/\.style-menu \{[^}]*position: absolute;[^}]*bottom: calc\(100% \+ 10px\)/);
   assert.match(editorCSS,/\.editor-app\.focus-mode \.edit-title[^}]*display: none/);
   assert.match(editorCSS,/\.editor-app\.focus-mode\.script-document \.script-editor[^}]*margin-right: auto;[^}]*margin-left: auto/);
   assert.match(editorCSS,/\.script-scene \{[^}]*font-weight: bold/);

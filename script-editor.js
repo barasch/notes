@@ -2,8 +2,8 @@ import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261027-4';
-import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261027-4';
+} from './script-core.js?v=20261104-1';
+import {paginateScript, SCRIPT_LAYOUT} from './script-layout.js?v=20261104-1';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -236,6 +236,20 @@ export class ScriptEditor {
     this.caret={blockId:block.id,offset:offset+text.length};this.recenterOnRender=true;this.onChange();this.render(true);
   }
 
+  moveElement(field,direction) {
+    const index=this.blockIndex(field.dataset.blockId),targetIndex=index+direction;
+    if(index<0||targetIndex<0||targetIndex>=this.document.blocks.length)return false;
+    const targetBlock=this.document.blocks[targetIndex];
+    const candidates=[...this.container.querySelectorAll(`[data-script-editable][data-block-id="${CSS.escape(targetBlock.id)}"]`)];
+    const target=direction<0?candidates.at(-1):candidates[0];if(!target)return false;
+    const localOffset=Math.min(caretOffset(field),target.textContent.length);
+    setCaret(target,localOffset);
+    this.caret={blockId:targetBlock.id,offset:Number(target.dataset.sourceStart||0)+localOffset};
+    this.updateFocusUnit(target,{recenter:this.focusMode&&this.view==='pageless'});
+    if(!this.focusMode||this.view!=='pageless')target.scrollIntoView?.({block:'nearest',inline:'nearest'});
+    return true;
+  }
+
   handleKeydown(event) {
     const field=event.target.closest('[data-script-editable]');if(!field)return;
     if(this.suggestion&&this.handleSuggestionKey(event,field))return;
@@ -255,7 +269,9 @@ export class ScriptEditor {
       const next=newScriptBlock(nextScriptType(block.type),after);
       this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.recenterOnRender=true;this.onChange();this.render(true);return;
     }
-    if(event.key==='ArrowUp'||event.key==='ArrowDown')return;
+    if((event.key==='ArrowUp'||event.key==='ArrowDown')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
+      event.preventDefault();this.moveElement(field,event.key==='ArrowUp'?-1:1);return;
+    }
   }
 
   suggestionValues(field) {
@@ -363,7 +379,9 @@ export class ScriptEditor {
 
   setStyle(type) {
     if(!editableTypes.has(type))return false;
-    const field=this.activeElement();if(!field)return false;
+    let field=this.activeElement();
+    if(!field&&this.caret?.blockId)field=this.container.querySelector(`[data-script-editable][data-block-id="${CSS.escape(this.caret.blockId)}"]`);
+    if(!field)return false;
     const block=this.block(field.dataset.blockId);if(!block)return false;
     block.type=type;delete block.dualWithPrevious;
     if(type==='parenthetical'&&!block.text.trim()){block.text='()';this.caret={blockId:block.id,offset:1};}

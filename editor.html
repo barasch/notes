@@ -8,7 +8,7 @@
   <title>Writer</title>
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="stylesheet" href="tufte.css"/>
-  <link rel="stylesheet" href="editor.css?v=20261027-4"/>
+  <link rel="stylesheet" href="editor.css?v=20261104-1"/>
 </head>
 <body class="editor-app">
   <div id="setupView" class="gate" hidden>
@@ -67,10 +67,13 @@
       </div>
     </header>
     <div class="floating-tools" aria-label="Editing controls">
-      <label class="visually-hidden" for="styleSelector">Paragraph style</label>
-      <select id="styleSelector" aria-label="Paragraph style">
-        <option value="h2">Heading</option><option value="h3">Subsection</option><option value="p">Body</option>
-      </select>
+      <div class="style-menu-holder">
+        <button type="button" id="styleSelector" class="style-selector-button" value="h2" aria-label="Paragraph style: Heading" aria-haspopup="listbox" aria-expanded="false" aria-controls="styleMenu">
+          <span id="styleSelectorLabel">Heading</span>
+          <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden="true" focusable="false"><path d="M1 1.5 6 6.5 11 1.5" fill="none" stroke="currentColor" stroke-width="1.25"/></svg>
+        </button>
+        <div id="styleMenu" class="style-menu" role="listbox" aria-label="Paragraph style" hidden></div>
+      </div>
       <div class="command-holder">
         <button type="button" id="menuButton" class="menu-circle local-ok" aria-label="Menu. Local copy saved" aria-expanded="false" aria-controls="commandMenu" title="Menu · local copy saved">
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M1 4h14 M1 8h14 M1 12h14" fill="none" stroke="currentColor" stroke-width="1"/></svg>
@@ -155,6 +158,6 @@
     </form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="editor.js?v=20261027-4"></script>
+  <script type="module" src="editor.js?v=20261104-1"></script>
 </body>
 </html>
