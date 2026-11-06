@@ -64,7 +64,9 @@ function key(field,key,options={}) {
 }
 
 function beforeInput(field,inputType,options={}) {
-  const event=new window.InputEvent('beforeinput',{inputType,bubbles:true,cancelable:true,...options});
+  const {targetRanges,...eventOptions}=options;
+  const event=new window.InputEvent('beforeinput',{inputType,bubbles:true,cancelable:true,...eventOptions});
+  if(targetRanges)Object.defineProperty(event,'getTargetRanges',{value:()=>targetRanges});
   field.dispatchEvent(event);return event;
 }
 
@@ -199,6 +201,73 @@ test('mobile beforeinput merges boundaries while Page fragments remain one logic
   key(field,'Backspace');
   assert.equal(paged.blocks.length,2,'a page fragment boundary does not merge screenplay elements');
   assert.equal(dialogue.text.length,originalLength-1,'the preceding character in the same element is deleted');
+  dom.window.close();
+});
+
+test('mobile boundary deletion uses target ranges when the global selection is outside the active element',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[newScriptBlock('scene','INT. ROOM - DAY'),newScriptBlock('action','John enters.')];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const previous=document.querySelector(`[data-block-id="${script.blocks[0].id}"] [data-script-editable]`);
+  const field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
+  placeCaret(previous,previous.textContent.length);
+  const targetRange={
+    startContainer:previous.firstChild,startOffset:previous.firstChild.length-1,
+    endContainer:field.firstChild,endOffset:0,
+  };
+  const event=beforeInput(field,'deleteContentBackward',{targetRanges:[targetRange]});
+  assert.equal(event.defaultPrevented,true);
+  assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].type,'scene');
+  assert.equal(script.blocks[0].text,'INT. ROOM - DAYJohn enters.');
+
+  const forward=newScript();forward.blocks=[newScriptBlock('action','One.'),newScriptBlock('character','JOHN')];editor.load(forward);
+  const first=document.querySelector(`[data-block-id="${forward.blocks[0].id}"] [data-script-editable]`);
+  const next=document.querySelector(`[data-block-id="${forward.blocks[1].id}"] [data-script-editable]`);
+  placeCaret(next,0);
+  const forwardRange={
+    startContainer:first.firstChild,startOffset:first.firstChild.length,
+    endContainer:next.firstChild,endOffset:1,
+  };
+  const forwardEvent=beforeInput(first,'deleteContentForward',{targetRanges:[forwardRange]});
+  assert.equal(forwardEvent.defaultPrevented,true);
+  assert.equal(forward.blocks.length,1);assert.equal(forward.blocks[0].type,'action');
+  assert.equal(forward.blocks[0].text,'One.JOHN');
+  dom.window.close();
+});
+
+test('mobile target ranges do not convert selected or within-element deletion into a structural merge',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[newScriptBlock('action','First'),newScriptBlock('action','Second')];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
+  placeCaret(field,1);
+  const node=field.firstChild;
+  const event=beforeInput(field,'deleteContentBackward',{targetRanges:[{
+    startContainer:node,startOffset:0,endContainer:node,endOffset:1,
+  }]});
+  assert.equal(event.defaultPrevented,false);
+  assert.equal(script.blocks.length,2);
+
+  const selection=document.createRange();selection.setStart(node,0);selection.setEnd(node,2);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(selection);
+  const selectedEvent=beforeInput(field,'deleteContentBackward',{targetRanges:[{
+    startContainer:node,startOffset:0,endContainer:node,endOffset:2,
+  }]});
+  assert.equal(selectedEvent.defaultPrevented,false);
+  assert.equal(script.blocks.length,2);
+  dom.window.close();
+});
+
+test('ordinary beforeinput does not inspect deletion target ranges',()=>{
+  const dom=environment(),script=newScript();
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const field=document.querySelector('[data-script-editable]');
+  const event=new window.InputEvent('beforeinput',{inputType:'insertText',data:'a',bubbles:true,cancelable:true});
+  Object.defineProperty(event,'getTargetRanges',{value:()=>{throw new Error('ordinary input inspected deletion ranges');}});
+  assert.doesNotThrow(()=>field.dispatchEvent(event));assert.equal(event.defaultPrevented,false);
   dom.window.close();
 });
 
