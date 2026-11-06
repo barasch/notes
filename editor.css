@@ -162,7 +162,8 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 .script-pageless-view.script-focus-mode .script-block { opacity: .15; transition: opacity .14s ease; }
 .script-pageless-view.script-focus-mode .script-block.focus-active { opacity: 1; }
 .script-page-view { display: grid; gap: 28px; padding-bottom: 4rem; }
-.script-page { position: relative; box-sizing: border-box; width: 612pt; height: 792pt; background: #fff; color: #111; box-shadow: 0 4px 20px #0002; overflow: hidden; }
+.script-page-frame { position: relative; width: 612pt; height: 792pt; }
+.script-page { position: absolute; inset: 0 auto auto 0; box-sizing: border-box; width: 612pt; height: 792pt; transform-origin: top left; background: #fff; color: #111; box-shadow: 0 4px 20px #0002; overflow: hidden; }
 .script-page .script-line { position: absolute; box-sizing: border-box; min-height: 12pt; margin: 0; outline: none; white-space: pre-wrap; overflow-wrap: break-word; font: 12pt/12pt Courier, "Courier New", monospace; }
 .script-page .script-scene { font-weight: bold; }
 .script-page .generated { user-select: none; }
@@ -183,7 +184,6 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
   .editor-body > .editor-object.fullwidth { width: 100%; max-width: 100%; }
   .editor-body > .image-object, .editor-body > .image-object.caption-side { width: 100%; max-width: 100%; }
   .note-rail { display: none; }
-  .script-continuous, .script-page { transform-origin: top left; }
   .scene-rail { position: fixed; z-index: 13; top: 61px; right: 0; bottom: 0; left: auto; width: min(19rem, 82vw); max-height: none; box-sizing: border-box; padding: 1rem; background: var(--paper); box-shadow: -5px 0 20px #0002; }
   .draft-row { align-items: flex-start; flex-wrap: wrap; gap: .5rem; }
   .draft-meta { order: 3; width: 100%; min-width: 0; }
@@ -194,7 +194,21 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
   .style-menu-holder, .style-selector-button { max-width: 8rem; }
   .collapsed-title { font-size: 1rem; }
   .collapsed-subtitle { display: none; }
-  .script-editor { overflow-x: auto; }
+  .script-editor { width: 100%; overflow-x: hidden; }
+  .script-page-view, .script-pageless-view { width: 100%; justify-items: center; }
+  .script-page-frame { margin-right: auto; margin-left: auto; }
+  .script-continuous { width: 100%; min-height: 30rem; padding: 24px 0 60px; font-size: 16px; line-height: 16px; }
+  .script-block { min-height: 16px; margin-bottom: 16px; }
+  .script-text { min-height: 16px; }
+  .script-act, .script-scene, .script-action { width: 100%; }
+  .script-character { width: 56.7%; margin-left: 36.7%; }
+  .script-parenthetical { width: 50%; margin-left: 26.7%; }
+  .script-dialogue { width: 58.3%; margin-left: 16.7%; }
+  .script-transition { width: 50%; margin-left: 50%; }
+  .dual-dialogue { gap: 12px; width: 100%; margin-bottom: 16px; }
+  .dual-dialogue .script-character { margin-left: 23.3%; }
+  .dual-dialogue .script-parenthetical { margin-left: 10%; }
+  .dual-dialogue .script-dialogue { width: 100%; }
 }
 @media (max-width: 600px) {
   .command-menu, .command-submenu { position: absolute; right: 0; bottom: calc(100% + 10px); width: min(230px, calc(100vw - 2rem)); }

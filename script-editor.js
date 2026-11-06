@@ -1,9 +1,9 @@
 import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
-  cycleScriptType, deriveCharacters, deriveScenes, dialogueRunAt, displayCharacterCue,
+  cycleScriptType, deriveScenes, dialogueRunAt, displayCharacterCue,
   newScriptBlock, nextScriptType, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
-} from './script-core.js?v=20261104-2';
-import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?v=20261104-2';
+} from './script-core.js?v=20261106-1';
+import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?v=20261106-1';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -43,15 +43,22 @@ export class ScriptEditor {
     catch {this.view='page';}
     try {this.scenesVisible=localStorage.getItem('writer-script-scenes')!=='hidden';}
     catch {this.scenesVisible=true;}
-    this.suggestion=null;this.renderTimer=null;this.caret=null;
+    this.suggestion=null;this.renderTimer=null;this.sceneTimer=null;this.caret=null;
     this.focusMode=false;this.focusKey='';this.recenterOnRender=false;
+    this.composing=false;this.layoutDirty=false;this.layoutSignature='';this.layoutWidth=0;this.selectionKey='';
+    this.characterEntries=[];
     container.addEventListener('input',event=>this.handleInput(event));
+    container.addEventListener('beforeinput',event=>this.handleBeforeInput(event));
     container.addEventListener('keydown',event=>this.handleKeydown(event));
+    container.addEventListener('compositionstart',()=>{this.composing=true;clearTimeout(this.renderTimer);this.renderTimer=null;});
+    container.addEventListener('compositionend',event=>{this.composing=false;const field=event.target.closest?.('[data-script-editable]');if(field)this.afterInput(field);});
     container.addEventListener('click',event=>this.handleClick(event));
     container.addEventListener('focusin',event=>this.focusChanged(event));
     sceneRail?.addEventListener('click',event=>this.handleClick(event));
     this.selectionListener=()=>this.selectionChanged();
     this.ownerDocument.addEventListener('selectionchange',this.selectionListener);
+    this.resizeListener=()=>this.updatePageScale();
+    this.window.addEventListener('resize',this.resizeListener,{passive:true});
   }
 
   load(document) {
@@ -92,7 +99,11 @@ export class ScriptEditor {
     this.container.classList.toggle('script-page-view',this.view==='page');
     this.container.classList.toggle('script-pageless-view',this.view!=='page');
     if(this.view==='page')this.renderPages(); else this.renderPageless();
-    this.renderScenes();this.caret=saved;this.restoreCaret(saved);
+    this.renderScenes();this.characterEntries=this.document.blocks
+      .filter(block=>block.type==='character')
+      .map(block=>({id:block.id,name:characterIdentity(block.text)}))
+      .filter(entry=>entry.name);
+    this.layoutDirty=false;this.selectionKey='';this.caret=saved;this.restoreCaret(saved);
     this.updateFocusUnit(this.activeElement(),{recenter:this.recenterOnRender});this.recenterOnRender=false;
   }
 
@@ -133,6 +144,30 @@ export class ScriptEditor {
     this.decorateDualPairs(sheet);
   }
 
+  pageLayoutSignature(model) {
+    return JSON.stringify(model.pages.flatMap(page=>page.items.map(item=>[
+      page.number,item.blockId||'',item.type,item.row,item.x,item.sourceStart??'',item.dualColumn||'',
+      Boolean(item.generated),Boolean(item.generatedContinued),item.type==='character'?item.text:'',
+    ])));
+  }
+
+  availableLayoutWidth() {
+    return this.container.clientWidth||this.container.parentElement?.clientWidth||this.window.innerWidth||SCRIPT_LAYOUT.pageWidth*4/3;
+  }
+
+  updatePageScale(force=false) {
+    if(this.view!=='page')return;
+    const available=this.availableLayoutWidth();
+    if(!force&&Math.abs(available-this.layoutWidth)<1)return;
+    this.layoutWidth=available;
+    const pageWidth=SCRIPT_LAYOUT.pageWidth*4/3,pageHeight=SCRIPT_LAYOUT.pageHeight*4/3;
+    const scale=Math.min(1,Math.max(.1,available/pageWidth));
+    for(const frame of this.container.querySelectorAll('.script-page-frame')) {
+      frame.style.width=`${pageWidth*scale}px`;frame.style.height=`${pageHeight*scale}px`;
+      const page=frame.querySelector('.script-page');if(page)page.style.transform=`scale(${scale})`;
+    }
+  }
+
   refreshGeneratedCues() {
     for(const block of this.document.blocks) {
       if(block.type!=='character')continue;
@@ -166,7 +201,9 @@ export class ScriptEditor {
 
   renderPages() {
     const model=paginateScript(this.document,{includeEmpty:true});this.lastPageModel=model;
+    this.layoutSignature=this.pageLayoutSignature(model);
     for(const page of model.pages) {
+      const frame=this.ownerDocument.createElement('div');frame.className='script-page-frame';
       const sheet=this.ownerDocument.createElement('section');sheet.className='script-page';sheet.dataset.page=String(page.number);
       const groups=new Map();
       for(const item of page.items) {
@@ -197,8 +234,9 @@ export class ScriptEditor {
           if(display.length>authored.length){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation page-generated';marker.textContent=display.slice(authored.length);marker.style.left=`${first.x+authored.length*SCRIPT_LAYOUT.charWidth}pt`;marker.style.top=`${first.y}pt`;sheet.append(marker);}
         }
       }
-      this.container.append(sheet);
+      frame.append(sheet);this.container.append(frame);
     }
+    this.updatePageScale(true);
   }
 
   renderScenes() {
@@ -224,10 +262,43 @@ export class ScriptEditor {
   handleInput(event) {
     const field=event.target.closest('[data-script-editable]');if(!field)return;
     this.updateBlockFromElement(field);this.caret=this.captureCaret(field);this.onChange();
-    this.updateSuggestions(field);this.renderScenes();
-    if(this.view==='page') {
-      clearTimeout(this.renderTimer);this.renderTimer=setTimeout(()=>this.render(),120);
-    } else this.refreshGeneratedCues();
+    if(event.isComposing||this.composing)return;
+    this.afterInput(field);
+  }
+
+  afterInput(field) {
+    const block=this.block(field.dataset.blockId);if(!block)return;
+    if(block.type==='character') {
+      this.updateSuggestions(field);
+      if(this.view==='pageless')this.refreshGeneratedCues();
+    } else if(this.suggestion)this.closeSuggestions();
+    if(block.type==='scene')this.scheduleSceneRefresh();
+    if(this.view==='page')this.schedulePageReflow();
+  }
+
+  scheduleSceneRefresh() {
+    clearTimeout(this.sceneTimer);
+    this.sceneTimer=setTimeout(()=>{this.sceneTimer=null;this.renderScenes();},450);
+  }
+
+  schedulePageReflow() {
+    this.layoutDirty=true;clearTimeout(this.renderTimer);
+    if(this.composing)return;
+    this.renderTimer=setTimeout(()=>this.reflowPageAfterInput(),900);
+  }
+
+  reflowPageAfterInput() {
+    this.renderTimer=null;
+    if(!this.layoutDirty||this.view!=='page'||this.composing)return;
+    const model=paginateScript(this.document,{includeEmpty:true}),signature=this.pageLayoutSignature(model);
+    if(signature===this.layoutSignature) {this.lastPageModel=model;this.layoutDirty=false;return;}
+    const field=this.activeElement(),before=field?.getBoundingClientRect?.();
+    this.caret=this.captureCaret(field)||this.caret;this.render(true);
+    const after=this.activeElement()?.getBoundingClientRect?.();
+    const delta=before&&after?after.top-before.top:0;
+    if(Number.isFinite(delta)&&Math.abs(delta)>1&&typeof this.window.scrollBy==='function') {
+      try {this.window.scrollBy(0,delta);} catch { /* Some embedded browsers do not expose scrolling. */ }
+    }
   }
 
   insertAtCaret(field,text) {
@@ -292,9 +363,90 @@ export class ScriptEditor {
     return true;
   }
 
+  normalizeDualMarkers() {
+    for(let index=0;index<this.document.blocks.length;index++) {
+      const block=this.document.blocks[index];
+      if(block.dualWithPrevious&&!canDualWithPrevious(this.document.blocks,index))delete block.dualWithPrevious;
+    }
+  }
+
+  commitStructuralChange(caret) {
+    clearTimeout(this.renderTimer);this.renderTimer=null;
+    clearTimeout(this.sceneTimer);this.sceneTimer=null;
+    this.layoutDirty=false;this.normalizeDualMarkers();this.caret=caret;
+    this.onChange();this.render(true);
+  }
+
+  deleteWithinBlock(block,offset,direction) {
+    let start=offset,end=offset;
+    if(direction<0) {
+      start=Math.max(0,offset-1);
+      if(start>0&&/[\uDC00-\uDFFF]/.test(block.text[start])&&/[\uD800-\uDBFF]/.test(block.text[start-1]))start--;
+    } else {
+      end=Math.min(block.text.length,offset+1);
+      if(end<block.text.length&&/[\uD800-\uDBFF]/.test(block.text[offset])&&/[\uDC00-\uDFFF]/.test(block.text[end]))end++;
+    }
+    block.text=block.text.slice(0,start)+block.text.slice(end);
+    this.commitStructuralChange({blockId:block.id,offset:start});
+  }
+
+  mergeAtBoundary(field,direction) {
+    const selection=this.window.getSelection();
+    if(!selection?.rangeCount||!selection.isCollapsed||!field.contains(selection.anchorNode)||this.composing)return false;
+    const localOffset=caretOffset(field),localLength=field.textContent.length;
+    if(direction<0?localOffset!==0:localOffset!==localLength)return false;
+    const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];if(index<0||!block)return false;
+    const absoluteOffset=Number(field.dataset.sourceStart||0)+localOffset;
+
+    // Page view may split one logical element across editable fragments. Crossing
+    // such a boundary deletes within that element rather than merging styles.
+    if(direction<0&&absoluteOffset>0) {this.deleteWithinBlock(block,absoluteOffset,-1);return true;}
+    if(direction>0&&absoluteOffset<block.text.length) {this.deleteWithinBlock(block,absoluteOffset,1);return true;}
+
+    if(direction<0&&block.dualWithPrevious) {
+      delete block.dualWithPrevious;this.commitStructuralChange({blockId:block.id,offset:0});return true;
+    }
+    const adjacent=this.document.blocks[index+direction];if(!adjacent)return false;
+    if(direction>0&&adjacent.dualWithPrevious) {
+      delete adjacent.dualWithPrevious;this.commitStructuralChange({blockId:block.id,offset:block.text.length});return true;
+    }
+
+    if(direction<0) {
+      const previous=adjacent,join=previous.text.length;
+      previous.text+=block.text;this.document.blocks.splice(index,1);
+      this.commitStructuralChange({blockId:previous.id,offset:join});return true;
+    }
+    const join=block.text.length;
+    block.text+=adjacent.text;this.document.blocks.splice(index+1,1);
+    this.commitStructuralChange({blockId:block.id,offset:join});return true;
+  }
+
+  splitElement(field,{soft=false}={}) {
+    clearTimeout(this.renderTimer);this.renderTimer=null;
+    if(soft){this.insertAtCaret(field,'\n');return true;}
+    const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];if(index<0||!block)return false;
+    const offset=Number(field.dataset.sourceStart||0)+caretOffset(field);
+    const before=block.text.slice(0,offset),after=block.text.slice(offset);block.text=before;
+    const next=newScriptBlock(nextScriptType(block.type),after);
+    this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.recenterOnRender=true;
+    this.onChange();this.render(true);return true;
+  }
+
+  handleBeforeInput(event) {
+    const field=event.target.closest?.('[data-script-editable]');if(!field||event.isComposing||this.composing)return;
+    const direction=event.inputType==='deleteContentBackward'?-1:event.inputType==='deleteContentForward'?1:0;
+    if(direction&&this.mergeAtBoundary(field,direction)){event.preventDefault();return;}
+    if(event.inputType==='insertParagraph') {event.preventDefault();this.splitElement(field);}
+    else if(event.inputType==='insertLineBreak') {event.preventDefault();this.splitElement(field,{soft:true});}
+  }
+
   handleKeydown(event) {
     const field=event.target.closest('[data-script-editable]');if(!field)return;
     if(this.suggestion&&this.handleSuggestionKey(event,field))return;
+    if((event.key==='Backspace'||event.key==='Delete')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
+      if(this.mergeAtBoundary(field,event.key==='Backspace'?-1:1))event.preventDefault();
+      return;
+    }
     if(event.key==='Tab'&&!event.altKey&&!event.ctrlKey&&!event.metaKey) {
       event.preventDefault();const block=this.block(field.dataset.blockId);
       const next=cycleScriptType(block.type,event.shiftKey);if(next===block.type)return;
@@ -303,13 +455,7 @@ export class ScriptEditor {
       delete block.dualWithPrevious;this.onChange();this.render(true);return;
     }
     if(event.key==='Enter'&&!event.altKey&&!event.ctrlKey&&!event.metaKey) {
-      event.preventDefault();clearTimeout(this.renderTimer);this.renderTimer=null;
-      if(event.shiftKey){this.insertAtCaret(field,'\n');return;}
-      const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];
-      const offset=Number(field.dataset.sourceStart||0)+caretOffset(field);
-      const before=block.text.slice(0,offset),after=block.text.slice(offset);block.text=before;
-      const next=newScriptBlock(nextScriptType(block.type),after);
-      this.document.blocks.splice(index+1,0,next);this.caret={blockId:next.id,offset:0};this.recenterOnRender=true;this.onChange();this.render(true);return;
+      event.preventDefault();this.splitElement(field,{soft:event.shiftKey});return;
     }
     if((event.key==='ArrowUp'||event.key==='ArrowDown')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
       const direction=event.key==='ArrowUp'?-1:1;
@@ -321,9 +467,9 @@ export class ScriptEditor {
   suggestionValues(field) {
     const block=this.block(field.dataset.blockId);if(block?.type!=='character')return [];
     const value=field.textContent;
-    const names=deriveCharacters(this.document.blocks).filter(name=>name!==characterIdentity(value));
+    const names=[...new Set(this.characterEntries.filter(entry=>entry.id!==block.id).map(entry=>entry.name))];
     const base=value.match(/^\s*([^()]*)/)?.[1].trim().toUpperCase()||'';
-    const known=deriveCharacters(this.document.blocks).find(name=>name===base);
+    const known=Boolean(base);
     if(known&&(value.endsWith('(')||/\s$/.test(value))) {
       return AUTHORED_CHARACTER_EXTENSIONS.filter(extension=>!value.toUpperCase().includes(extension));
     }
@@ -377,6 +523,8 @@ export class ScriptEditor {
     const field=this.activeElement();if(!field||!this.container.contains(field))return;
     const block=this.block(field.dataset.blockId);if(!block)return;
     const key=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
+    const selectionKey=`${key}:${block.type}`;if(selectionKey===this.selectionKey)return;
+    this.selectionKey=selectionKey;
     this.updateFocusUnit(field,{recenter:this.focusMode&&this.view==='pageless'&&key!==this.focusKey});
     this.styleSelector.value=block.type;this.onSelection(block.type,this.canToggleDual());
   }
@@ -478,5 +626,9 @@ export class ScriptEditor {
 
   pageModel() { this.lastPageModel=paginateScript(this.document);return this.lastPageModel; }
   focusFirst() {this.container.querySelector('[data-script-editable]')?.focus();}
-  destroy() {clearTimeout(this.renderTimer);this.ownerDocument.removeEventListener('selectionchange',this.selectionListener);}
+  destroy() {
+    clearTimeout(this.renderTimer);clearTimeout(this.sceneTimer);
+    this.ownerDocument.removeEventListener('selectionchange',this.selectionListener);
+    this.window.removeEventListener('resize',this.resizeListener);
+  }
 }

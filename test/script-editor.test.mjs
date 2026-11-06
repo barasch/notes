@@ -37,6 +37,20 @@ test('ScriptEditor defaults to Page view and keeps the empty element created by 
   dom.window.close();
 });
 
+test('Page view fits and centers its fixed screenplay page within a narrow editor width',()=>{
+  const dom=environment(null),script=newScript(),container=document.getElementById('editor');
+  Object.defineProperty(container,'clientWidth',{value:360,configurable:true});
+  const editor=new ScriptEditor({container,sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const frame=document.querySelector('.script-page-frame'),page=document.querySelector('.script-page');
+  assert.equal(frame.style.width,'360px');
+  assert.equal(frame.style.height,`${360*792/612}px`);
+  assert.match(page.style.transform,/^scale\(0\.44/);
+  const transform=page.style.transform;window.dispatchEvent(new window.Event('resize'));
+  assert.equal(page.style.transform,transform,'height-only mobile resize does not disturb the page scale');
+  dom.window.close();
+});
+
 function placeCaret(field,offset=field.textContent.length) {
   const node=field.firstChild||field.appendChild(document.createTextNode(''));
   const range=document.createRange();range.setStart(node,Math.min(offset,node.length));range.collapse(true);
@@ -46,6 +60,11 @@ function placeCaret(field,offset=field.textContent.length) {
 
 function key(field,key,options={}) {
   const event=new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options});
+  field.dispatchEvent(event);return event;
+}
+
+function beforeInput(field,inputType,options={}) {
+  const event=new window.InputEvent('beforeinput',{inputType,bubbles:true,cancelable:true,...options});
   field.dispatchEvent(event);return event;
 }
 
@@ -120,6 +139,81 @@ test('Up and Down remain native within wrapped elements and cross only at the fi
   key(field,'ArrowDown');
   assert.equal(editor.activeElement().dataset.blockId,script.blocks[2].id,'Down crosses from the last visual line');
   assert.equal(editor.captureCaret().offset,3,'cross-element navigation preserves the visual column');
+  dom.window.close();
+});
+
+test('ordinary input retains the active Page-view node when pagination geometry is unchanged',()=>{
+  const dom=environment(null),script=newScript();
+  script.blocks=[newScriptBlock('action','')];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const field=document.querySelector('[data-script-editable]');
+  for(const character of 'Fast mobile input.') {
+    field.textContent+=character;placeCaret(field);
+    field.dispatchEvent(new window.InputEvent('input',{data:character,inputType:'insertText',bubbles:true}));
+    assert.equal(document.querySelector('[data-script-editable]'),field,'typing must not replace the live editable');
+  }
+  clearTimeout(editor.renderTimer);editor.renderTimer=null;editor.reflowPageAfterInput();
+  assert.equal(document.querySelector('[data-script-editable]'),field,'an unchanged page layout needs no reconstruction');
+  assert.equal(script.blocks[0].text,'Fast mobile input.');
+  dom.window.close();
+});
+
+test('Backspace and Delete merge element contents into the surviving element style',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[newScriptBlock('scene','INT. ROOM - DAY'),newScriptBlock('action','John enters.')];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  let field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field,0);
+  assert.equal(key(field,'Backspace').defaultPrevented,true);
+  assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].type,'scene');
+  assert.equal(script.blocks[0].text,'INT. ROOM - DAYJohn enters.');
+  assert.equal(editor.captureCaret().offset,'INT. ROOM - DAY'.length);
+
+  const next=newScript();next.blocks=[newScriptBlock('action','One.'),newScriptBlock('character','JOHN')];editor.load(next);
+  field=document.querySelector(`[data-block-id="${next.blocks[0].id}"] [data-script-editable]`);placeCaret(field);
+  assert.equal(key(field,'Delete').defaultPrevented,true);
+  assert.equal(next.blocks.length,1);assert.equal(next.blocks[0].type,'action');assert.equal(next.blocks[0].text,'One.JOHN');
+  assert.equal(editor.captureCaret().offset,'One.'.length);
+  dom.window.close();
+});
+
+test('mobile beforeinput merges boundaries while Page fragments remain one logical element',()=>{
+  const dom=environment(null),script=newScript();
+  script.blocks=[newScriptBlock('action','First'),newScriptBlock('action','Second')];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  let field=document.querySelector(`[data-block-id="${script.blocks[1].id}"][data-script-editable]`);placeCaret(field,0);
+  field.dispatchEvent(new window.CompositionEvent('compositionstart',{bubbles:true}));
+  assert.equal(beforeInput(field,'deleteContentBackward',{isComposing:true}).defaultPrevented,false);
+  assert.equal(script.blocks.length,2,'composition input is never converted into a structural merge');
+  field.dispatchEvent(new window.CompositionEvent('compositionend',{bubbles:true}));
+  assert.equal(beforeInput(field,'deleteContentBackward').defaultPrevented,true);
+  assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].text,'FirstSecond');
+
+  const paged=newScript(),dialogue=newScriptBlock('dialogue','word '.repeat(900).trim());
+  paged.blocks=[newScriptBlock('character','JOHN'),dialogue];editor.load(paged);
+  const fragments=[...document.querySelectorAll(`[data-block-id="${dialogue.id}"][data-script-editable]`)];
+  assert.ok(fragments.length>1,'the dialogue spans page fragments');
+  const originalLength=dialogue.text.length;field=fragments[1];placeCaret(field,0);
+  key(field,'Backspace');
+  assert.equal(paged.blocks.length,2,'a page fragment boundary does not merge screenplay elements');
+  assert.equal(dialogue.text.length,originalLength-1,'the preceding character in the same element is deleted');
+  dom.window.close();
+});
+
+test('deleting across simultaneous dialogue first separates the lanes',()=>{
+  const dom=environment(),script=newScript();
+  script.blocks=[
+    newScriptBlock('character','JOHN'),newScriptBlock('dialogue','Left.'),
+    {...newScriptBlock('character','MARY'),dualWithPrevious:true},newScriptBlock('dialogue','Right.'),
+  ];
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(script);
+  const rightCharacter=script.blocks[2];const field=document.querySelector(`[data-block-id="${rightCharacter.id}"] [data-script-editable]`);placeCaret(field,0);
+  key(field,'Backspace');
+  assert.equal(script.blocks.length,4);assert.equal(rightCharacter.dualWithPrevious,undefined);
+  assert.equal(rightCharacter.text,'MARY');
   dom.window.close();
 });
 
