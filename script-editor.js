@@ -7,11 +7,18 @@ import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
+function textOffsetAt(element,node,offset) {
+  if(!node||(node!==element&&!element.contains(node)))return null;
+  try {
+    const range=element.ownerDocument.createRange();range.selectNodeContents(element);range.setEnd(node,offset);
+    return range.toString().length;
+  } catch {return null;}
+}
+
 function caretOffset(element) {
   const selection=element.ownerDocument.defaultView.getSelection();
-  if(!selection?.rangeCount||!element.contains(selection.anchorNode)) return 0;
-  const range=element.ownerDocument.createRange();range.selectNodeContents(element);range.setEnd(selection.anchorNode,selection.anchorOffset);
-  return range.toString().length;
+  if(!selection?.rangeCount)return 0;
+  return textOffsetAt(element,selection.anchorNode,selection.anchorOffset)??0;
 }
 
 function setCaret(element,offset) {
@@ -48,7 +55,7 @@ export class ScriptEditor {
     this.composing=false;this.layoutDirty=false;this.layoutSignature='';this.layoutWidth=0;this.selectionKey='';
     this.characterEntries=[];
     container.addEventListener('input',event=>this.handleInput(event));
-    container.addEventListener('beforeinput',event=>this.handleBeforeInput(event));
+    container.addEventListener('beforeinput',event=>this.handleBeforeInput(event),true);
     container.addEventListener('keydown',event=>this.handleKeydown(event));
     container.addEventListener('compositionstart',()=>{this.composing=true;clearTimeout(this.renderTimer);this.renderTimer=null;});
     container.addEventListener('compositionend',event=>{this.composing=false;const field=event.target.closest?.('[data-script-editable]');if(field)this.afterInput(field);});
@@ -259,6 +266,35 @@ export class ScriptEditor {
     field.dataset.sourceEnd=String(start+value.length);
   }
 
+  deletionDirection(inputType='') {
+    if(inputType==='deleteContentBackward')return -1;
+    if(inputType==='deleteContentForward')return 1;
+    return 0;
+  }
+
+  inputBoundaryOffset(event,field,direction) {
+    const selection=this.window.getSelection();
+    if(selection?.rangeCount&&!selection.isCollapsed)return null;
+    const ranges=event.getTargetRanges?.()||[],target=ranges[0];
+    if(target) {
+      const collapsed=target.startContainer===target.endContainer&&target.startOffset===target.endOffset;
+      const boundaryNode=direction<0?target.endContainer:target.startContainer;
+      const boundaryPoint=direction<0?target.endOffset:target.startOffset;
+      const offset=textOffsetAt(field,boundaryNode,boundaryPoint);
+      if(offset!=null) {
+        const otherNode=direction<0?target.startContainer:target.endContainer;
+        const otherPoint=direction<0?target.startOffset:target.endOffset;
+        const otherOffset=textOffsetAt(field,otherNode,otherPoint);
+        if(collapsed||otherOffset==null)return offset;
+        return null;
+      }
+    }
+    if(selection?.rangeCount&&selection.isCollapsed) {
+      const offset=textOffsetAt(field,selection.anchorNode,selection.anchorOffset);if(offset!=null)return offset;
+    }
+    return field.textContent.length===0&&event.target===field?0:null;
+  }
+
   handleInput(event) {
     const field=event.target.closest('[data-script-editable]');if(!field)return;
     this.updateBlockFromElement(field);this.caret=this.captureCaret(field);this.onChange();
@@ -390,10 +426,15 @@ export class ScriptEditor {
     this.commitStructuralChange({blockId:block.id,offset:start});
   }
 
-  mergeAtBoundary(field,direction) {
-    const selection=this.window.getSelection();
-    if(!selection?.rangeCount||!selection.isCollapsed||!field.contains(selection.anchorNode)||this.composing)return false;
-    const localOffset=caretOffset(field),localLength=field.textContent.length;
+  mergeAtBoundary(field,direction,boundaryOffset=null) {
+    if(this.composing)return false;
+    let localOffset=boundaryOffset;
+    if(localOffset==null) {
+      const selection=this.window.getSelection();
+      if(!selection?.rangeCount||!selection.isCollapsed)return false;
+      localOffset=textOffsetAt(field,selection.anchorNode,selection.anchorOffset);if(localOffset==null)return false;
+    }
+    const localLength=field.textContent.length;
     if(direction<0?localOffset!==0:localOffset!==localLength)return false;
     const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];if(index<0||!block)return false;
     const absoluteOffset=Number(field.dataset.sourceStart||0)+localOffset;
@@ -434,8 +475,13 @@ export class ScriptEditor {
 
   handleBeforeInput(event) {
     const field=event.target.closest?.('[data-script-editable]');if(!field||event.isComposing||this.composing)return;
-    const direction=event.inputType==='deleteContentBackward'?-1:event.inputType==='deleteContentForward'?1:0;
-    if(direction&&this.mergeAtBoundary(field,direction)){event.preventDefault();return;}
+    const direction=this.deletionDirection(event.inputType);
+    if(direction) {
+      const offset=this.inputBoundaryOffset(event,field,direction);
+      if(offset!=null&&this.mergeAtBoundary(field,direction,offset)) {
+        event.preventDefault();return;
+      }
+    }
     if(event.inputType==='insertParagraph') {event.preventDefault();this.splitElement(field);}
     else if(event.inputType==='insertLineBreak') {event.preventDefault();this.splitElement(field,{soft:true});}
   }
