@@ -89,7 +89,7 @@ test('pull-quote sources and supported embeds publish safely',()=>{
   assert.equal((page.match(/platform\.x\.com\/widgets\.js/g)||[]).length,1,'the X widget script is loaded once');
   assert.doesNotMatch(page,/onclick/);
   assert.match(page,/<iframe src="https:\/\/player\.example\.org\/video\/1"[^>]*allowfullscreen>/);
-  assert.match(page,/href="editor\.html">Writer<\/a>/);
+  assert.match(page,/href="writer\.html">Writer<\/a>/);
 });
 
 test('draft comparison ignores save metadata but detects authored changes',()=>{

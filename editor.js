@@ -4,10 +4,10 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js?v=20261104-2';
-import {newScript, scriptToFountain} from './script-core.js?v=20261104-2';
-import {downloadScriptPdf} from './script-pdf.js?v=20261104-2';
-import {ScriptEditor} from './script-editor.js?v=20261104-2';
+} from './editor-core.js?v=20261106-1';
+import {newScript, scriptToFountain} from './script-core.js?v=20261106-1';
+import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
+import {ScriptEditor} from './script-editor.js?v=20261106-1';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
@@ -16,6 +16,7 @@ let credential = null, credentialSha = null, key = null, token = null;
 let publicGithub = new GitHub('',PUBLIC_REPOSITORY), draftGithub = new GitHub('',DRAFT_REPOSITORY);
 let note = null, revision = 0, localRevision = -1;
 let saveTimer = null, continuousTimer = null, overdueTimer = null, localWrite = null;
+let localStatus = '';
 let selectedRange = null, selectedEditable = body, dialogContext = null, busy = false;
 const mediaQuery=(query,fallback)=>window.matchMedia?.(query)||{get matches(){return fallback();}};
 const wideNotes=mediaQuery('(min-width: 1051px)',()=>window.innerWidth>1050);
@@ -59,6 +60,8 @@ function warning(message='') {
   $('warning').textContent=message; $('warning').hidden=!message;
 }
 function localState(state) {
+  if(state===localStatus)return;
+  localStatus=state;
   const button=$('menuButton');
   button.classList.remove('local-ok','local-pending','local-failed');
   button.classList.add(`local-${state}`);
@@ -111,23 +114,23 @@ function markChanged() {
   revision++;
   localState('pending');
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(saveLocal,1000);
-  if(!continuousTimer) continuousTimer=setInterval(()=>{
-    if(revision!==localRevision) saveLocal();
-    else { clearInterval(continuousTimer); continuousTimer=null; }
-  },5000);
+  saveTimer=setTimeout(saveLocal,1500);
+  if(!continuousTimer) continuousTimer=setTimeout(()=>{
+    continuousTimer=null;if(revision!==localRevision)saveLocal();
+  },20000);
   clearTimeout(overdueTimer);
   overdueTimer=setTimeout(()=>{
     if(revision!==localRevision) {
       localState('failed');
       warning('Local recovery has not saved your latest changes. Try Save draft or check browser storage.');
     }
-  },10000);
+  },30000);
   if(documentKind(note)==='note')requestAnimationFrame(layoutNotes);
 }
 async function saveLocal() {
   if(!key || !note) return;
   if(localWrite) return localWrite;
+  clearTimeout(saveTimer);saveTimer=null;
   const pendingRevision=revision;
   const snapshot=localSnapshot();
   localWrite=(async()=>{
@@ -135,8 +138,9 @@ async function saveLocal() {
       await recoveryPut(snapshot.id,snapshot,key);
       if(revision===pendingRevision) {
         localRevision=revision; localState('ok'); warning(); clearTimeout(overdueTimer);
+        clearTimeout(continuousTimer);continuousTimer=null;
       } else {
-        clearTimeout(saveTimer); saveTimer=setTimeout(saveLocal,500);
+        clearTimeout(saveTimer); saveTimer=setTimeout(saveLocal,1500);
       }
     } catch(error) {
       localState('failed');
@@ -147,6 +151,7 @@ async function saveLocal() {
 }
 async function flushLocal() {
   clearTimeout(saveTimer);
+  clearTimeout(continuousTimer);continuousTimer=null;
   if(localWrite) await localWrite;
   if(revision!==localRevision) await saveLocal();
   if(revision!==localRevision) throw new Error('Local recovery failed. Your text is still open in this tab.');

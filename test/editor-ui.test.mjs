@@ -537,6 +537,9 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.match(editorCSS,/\.script-scene \{[^}]*font-weight: bold/);
   assert.match(editorCSS,/\.script-page \.script-scene \{[^}]*font-weight: bold/);
   assert.match(editorCSS,/\.script-pageless-view\.script-focus-mode \.script-block \{[^}]*opacity: \.15/);
+  assert.match(editorCSS,/\.script-page-frame \{[^}]*position: relative;[^}]*width: 612pt;[^}]*height: 792pt/);
+  assert.match(editorCSS,/@media \(max-width: 760px\)[\s\S]*\.script-editor \{[^}]*overflow-x: hidden/);
+  assert.match(editorCSS,/@media \(max-width: 760px\)[\s\S]*\.script-continuous \{[^}]*width: 100%;[^}]*font-size: 16px/);
   assert.match(editorCSS,/\.command-menu button\[hidden\][^}]*display: none/);
   await new Promise(resolve=>setTimeout(resolve,150));
   dom.window.close();
