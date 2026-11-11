@@ -25,7 +25,7 @@ test('ScriptEditor defaults to Page view and keeps the empty element created by 
   assert.equal(document.querySelector('.script-page-number').textContent,'1.');
   let field=document.querySelector('[data-script-editable]');
   field.textContent='INT. ROOM - DAY';placeCaret(field);field.dispatchEvent(new window.Event('input',{bubbles:true}));
-  key(field,'Enter');
+  beforeInput(field,'insertParagraph');
   assert.equal(script.blocks[1].type,'action');
   field=document.querySelector(`[data-script-editable][data-block-id="${script.blocks[1].id}"]`);
   assert.ok(field,'the empty next element remains visible in Page view');
@@ -52,22 +52,25 @@ test('Page view fits and centers its fixed screenplay page within a narrow edito
 });
 
 function placeCaret(field,offset=field.textContent.length) {
-  const node=field.firstChild||field.appendChild(document.createTextNode(''));
-  const range=document.createRange();range.setStart(node,Math.min(offset,node.length));range.collapse(true);
-  window.getSelection().removeAllRanges();window.getSelection().addRange(range);field.focus();
+  const node=[...field.childNodes].find(child=>child.nodeType===3);
+  const range=document.createRange();
+  if(node)range.setStart(node,Math.min(offset,node.length));else range.setStart(field,0);
+  range.collapse(true);
+  (field.closest('[data-script-editor-host]')||field).focus();
+  window.getSelection().removeAllRanges();window.getSelection().addRange(range);
   document.dispatchEvent(new window.Event('selectionchange'));
 }
 
 function key(field,key,options={}) {
   const event=new window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options});
-  field.dispatchEvent(event);return event;
+  (field.closest('[data-script-editor-host]')||field).dispatchEvent(event);return event;
 }
 
 function beforeInput(field,inputType,options={}) {
   const {targetRanges,...eventOptions}=options;
   const event=new window.InputEvent('beforeinput',{inputType,bubbles:true,cancelable:true,...eventOptions});
   if(targetRanges)Object.defineProperty(event,'getTargetRanges',{value:()=>targetRanges});
-  field.dispatchEvent(event);return event;
+  (field.closest('[data-script-editor-host]')||field).dispatchEvent(event);return event;
 }
 
 test('ScriptEditor follows the element cycle and keeps Act and Transition outside it',()=>{
@@ -77,12 +80,12 @@ test('ScriptEditor follows the element cycle and keeps Act and Transition outsid
   let field=document.querySelector('[data-script-editable]');placeCaret(field);
   key(field,'Tab',{shiftKey:true});assert.equal(script.blocks[0].type,'act');
   field=document.querySelector('[data-script-editable]');placeCaret(field);key(field,'Tab');assert.equal(script.blocks[0].type,'scene');
-  field=document.querySelector('[data-script-editable]');placeCaret(field);key(field,'Enter');assert.equal(script.blocks[1].type,'action');
+  field=document.querySelector('[data-script-editable]');placeCaret(field);beforeInput(field,'insertParagraph');assert.equal(script.blocks[1].type,'action');
   field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field);key(field,'Tab');assert.equal(script.blocks[1].type,'character');
   field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field);key(field,'Tab');assert.equal(script.blocks[1].type,'parenthetical');
-  field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field,1);key(field,'Enter');assert.equal(script.blocks[2].type,'dialogue');
+  field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field,1);beforeInput(field,'insertParagraph');assert.equal(script.blocks[2].type,'dialogue');
   field=document.querySelector(`[data-block-id="${script.blocks[2].id}"] [data-script-editable]`);placeCaret(field);editor.setStyle('transition');
-  field=document.querySelector(`[data-block-id="${script.blocks[2].id}"] [data-script-editable]`);placeCaret(field);key(field,'Enter');assert.equal(script.blocks[3].type,'scene');
+  field=document.querySelector(`[data-block-id="${script.blocks[2].id}"] [data-script-editable]`);placeCaret(field);beforeInput(field,'insertParagraph');assert.equal(script.blocks[3].type,'scene');
   dom.window.close();
 });
 
@@ -152,7 +155,7 @@ test('ordinary input retains the active Page-view node when pagination geometry 
   const field=document.querySelector('[data-script-editable]');
   for(const character of 'Fast mobile input.') {
     field.textContent+=character;placeCaret(field);
-    field.dispatchEvent(new window.InputEvent('input',{data:character,inputType:'insertText',bubbles:true}));
+    document.getElementById('editor').dispatchEvent(new window.InputEvent('input',{data:character,inputType:'insertText',bubbles:true}));
     assert.equal(document.querySelector('[data-script-editable]'),field,'typing must not replace the live editable');
   }
   clearTimeout(editor.renderTimer);editor.renderTimer=null;editor.reflowPageAfterInput();
@@ -161,22 +164,32 @@ test('ordinary input retains the active Page-view node when pagination geometry 
   dom.window.close();
 });
 
-test('Backspace and Delete merge element contents into the surviving element style',()=>{
+test('root beforeinput Backspace and Delete merge element contents into the surviving element style',()=>{
   const dom=environment(),script=newScript();
   script.blocks=[newScriptBlock('scene','INT. ROOM - DAY'),newScriptBlock('action','John enters.')];
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
   editor.load(script);
   let field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);placeCaret(field,0);
-  assert.equal(key(field,'Backspace').defaultPrevented,true);
+  assert.equal(key(field,'Backspace').defaultPrevented,false,'deletion is not split into a keydown command path');
+  assert.equal(script.blocks.length,2);
+  assert.equal(beforeInput(field,'deleteContentBackward').defaultPrevented,true);
   assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].type,'scene');
   assert.equal(script.blocks[0].text,'INT. ROOM - DAYJohn enters.');
   assert.equal(editor.captureCaret().offset,'INT. ROOM - DAY'.length);
 
   const next=newScript();next.blocks=[newScriptBlock('action','One.'),newScriptBlock('character','JOHN')];editor.load(next);
   field=document.querySelector(`[data-block-id="${next.blocks[0].id}"] [data-script-editable]`);placeCaret(field);
-  assert.equal(key(field,'Delete').defaultPrevented,true);
+  assert.equal(beforeInput(field,'deleteContentForward').defaultPrevented,true);
   assert.equal(next.blocks.length,1);assert.equal(next.blocks[0].type,'action');assert.equal(next.blocks[0].text,'One.JOHN');
   assert.equal(editor.captureCaret().offset,'One.'.length);
+
+  const edges=newScript();edges.blocks=[newScriptBlock('action','Only'),newScriptBlock('action','')];editor.load(edges);
+  field=document.querySelector(`[data-block-id="${edges.blocks[1].id}"] [data-script-editable]`);placeCaret(field,0);
+  assert.equal(beforeInput(field,'deleteContentBackward').defaultPrevented,true);assert.equal(edges.blocks.length,1);
+  field=document.querySelector('[data-script-editable]');placeCaret(field,0);
+  assert.equal(beforeInput(field,'deleteContentBackward').defaultPrevented,true);assert.equal(edges.blocks[0].text,'Only');
+  placeCaret(field,field.textContent.length);
+  assert.equal(beforeInput(field,'deleteContentForward').defaultPrevented,true);assert.equal(edges.blocks[0].text,'Only');
   dom.window.close();
 });
 
@@ -198,45 +211,31 @@ test('mobile beforeinput merges boundaries while Page fragments remain one logic
   const fragments=[...document.querySelectorAll(`[data-block-id="${dialogue.id}"][data-script-editable]`)];
   assert.ok(fragments.length>1,'the dialogue spans page fragments');
   const originalLength=dialogue.text.length;field=fragments[1];placeCaret(field,0);
-  key(field,'Backspace');
+  beforeInput(field,'deleteContentBackward');
   assert.equal(paged.blocks.length,2,'a page fragment boundary does not merge screenplay elements');
   assert.equal(dialogue.text.length,originalLength-1,'the preceding character in the same element is deleted');
   dom.window.close();
 });
 
-test('mobile boundary deletion uses target ranges when the global selection is outside the active element',()=>{
+test('the script body is one editing host and generated content is noneditable',()=>{
   const dom=environment(),script=newScript();
   script.blocks=[newScriptBlock('scene','INT. ROOM - DAY'),newScriptBlock('action','John enters.')];
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
   editor.load(script);
-  const previous=document.querySelector(`[data-block-id="${script.blocks[0].id}"] [data-script-editable]`);
-  const field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
-  placeCaret(previous,previous.textContent.length);
-  const targetRange={
-    startContainer:previous.firstChild,startOffset:previous.firstChild.length-1,
-    endContainer:field.firstChild,endOffset:0,
-  };
-  const event=beforeInput(field,'deleteContentBackward',{targetRanges:[targetRange]});
-  assert.equal(event.defaultPrevented,true);
-  assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].type,'scene');
-  assert.equal(script.blocks[0].text,'INT. ROOM - DAYJohn enters.');
-
-  const forward=newScript();forward.blocks=[newScriptBlock('action','One.'),newScriptBlock('character','JOHN')];editor.load(forward);
-  const first=document.querySelector(`[data-block-id="${forward.blocks[0].id}"] [data-script-editable]`);
-  const next=document.querySelector(`[data-block-id="${forward.blocks[1].id}"] [data-script-editable]`);
-  placeCaret(next,0);
-  const forwardRange={
-    startContainer:first.firstChild,startOffset:first.firstChild.length,
-    endContainer:next.firstChild,endOffset:1,
-  };
-  const forwardEvent=beforeInput(first,'deleteContentForward',{targetRanges:[forwardRange]});
-  assert.equal(forwardEvent.defaultPrevented,true);
-  assert.equal(forward.blocks.length,1);assert.equal(forward.blocks[0].type,'action');
-  assert.equal(forward.blocks[0].text,'One.JOHN');
+  const host=document.getElementById('editor'),fields=[...document.querySelectorAll('[data-script-editable]')];
+  assert.equal(host.getAttribute('contenteditable'),'true');
+  assert.ok(fields.length>1);assert.ok(fields.every(field=>!field.hasAttribute('contenteditable')));
+  assert.doesNotMatch(scriptEditorSource,/event\.key==='Backspace'|event\.key==='Delete'/);
+  editor.setView('page');
+  assert.ok([...document.querySelectorAll('.generated')].every(element=>element.getAttribute('contenteditable')==='false'));
+  const outside=document.createRange();outside.setStart(host,0);outside.collapse(true);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(outside);
+  const stray=new window.InputEvent('beforeinput',{inputType:'insertText',data:'x',bubbles:true,cancelable:true});host.dispatchEvent(stray);
+  assert.equal(stray.defaultPrevented,true,'text cannot be inserted outside a script element');
   dom.window.close();
 });
 
-test('mobile target ranges do not convert selected or within-element deletion into a structural merge',()=>{
+test('selected text within one element remains native and a cross-element selection is deleted as one model transaction',()=>{
   const dom=environment(),script=newScript();
   script.blocks=[newScriptBlock('action','First'),newScriptBlock('action','Second')];
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
@@ -244,30 +243,37 @@ test('mobile target ranges do not convert selected or within-element deletion in
   const field=document.querySelector(`[data-block-id="${script.blocks[1].id}"] [data-script-editable]`);
   placeCaret(field,1);
   const node=field.firstChild;
-  const event=beforeInput(field,'deleteContentBackward',{targetRanges:[{
-    startContainer:node,startOffset:0,endContainer:node,endOffset:1,
-  }]});
+  const within=document.createRange();within.setStart(node,0);within.setEnd(node,1);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(within);
+  const event=beforeInput(field,'deleteContentBackward');
   assert.equal(event.defaultPrevented,false);
   assert.equal(script.blocks.length,2);
 
-  const selection=document.createRange();selection.setStart(node,0);selection.setEnd(node,2);
+  const first=document.querySelector(`[data-block-id="${script.blocks[0].id}"] [data-script-editable]`);
+  const selection=document.createRange();selection.setStart(first.firstChild,2);selection.setEnd(node,3);
   window.getSelection().removeAllRanges();window.getSelection().addRange(selection);
-  const selectedEvent=beforeInput(field,'deleteContentBackward',{targetRanges:[{
-    startContainer:node,startOffset:0,endContainer:node,endOffset:2,
-  }]});
-  assert.equal(selectedEvent.defaultPrevented,false);
-  assert.equal(script.blocks.length,2);
+  const selectedEvent=beforeInput(field,'deleteContentBackward');
+  assert.equal(selectedEvent.defaultPrevented,true);
+  assert.equal(script.blocks.length,1);assert.equal(script.blocks[0].text,'Fiond');
+  assert.equal(editor.captureCaret().offset,2);
+
+  const cut=newScript();cut.blocks=[newScriptBlock('action','Alpha'),newScriptBlock('dialogue','Beta')];editor.load(cut);
+  const cutFields=[...document.querySelectorAll('[data-script-editable]')],cutRange=document.createRange();
+  cutRange.setStart(cutFields[0].firstChild,1);cutRange.setEnd(cutFields[1].firstChild,2);
+  window.getSelection().removeAllRanges();window.getSelection().addRange(cutRange);
+  assert.equal(beforeInput(cutFields[1],'deleteByCut').defaultPrevented,true);
+  assert.equal(cut.blocks.length,1);assert.equal(cut.blocks[0].text,'Ata');
   dom.window.close();
 });
 
-test('ordinary beforeinput does not inspect deletion target ranges',()=>{
+test('ordinary beforeinput leaves native character input untouched',()=>{
   const dom=environment(),script=newScript();
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
   editor.load(script);
   const field=document.querySelector('[data-script-editable]');
+  placeCaret(field);
   const event=new window.InputEvent('beforeinput',{inputType:'insertText',data:'a',bubbles:true,cancelable:true});
-  Object.defineProperty(event,'getTargetRanges',{value:()=>{throw new Error('ordinary input inspected deletion ranges');}});
-  assert.doesNotThrow(()=>field.dispatchEvent(event));assert.equal(event.defaultPrevented,false);
+  assert.doesNotThrow(()=>document.getElementById('editor').dispatchEvent(event));assert.equal(event.defaultPrevented,false);
   dom.window.close();
 });
 
@@ -280,7 +286,7 @@ test('deleting across simultaneous dialogue first separates the lanes',()=>{
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
   editor.load(script);
   const rightCharacter=script.blocks[2];const field=document.querySelector(`[data-block-id="${rightCharacter.id}"] [data-script-editable]`);placeCaret(field,0);
-  key(field,'Backspace');
+  beforeInput(field,'deleteContentBackward');
   assert.equal(script.blocks.length,4);assert.equal(rightCharacter.dualWithPrevious,undefined);
   assert.equal(rightCharacter.text,'MARY');
   dom.window.close();
@@ -359,7 +365,7 @@ test('Enter recenters the newly active element in Pageless focus',()=>{
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
   editor.load(script);
   const field=document.querySelector('[data-script-editable]');placeCaret(field);editor.setFocusMode(true);centeredId='';
-  key(field,'Enter');
+  beforeInput(field,'insertParagraph');
   assert.equal(centeredId,script.blocks[1].id);
   assert.equal(document.querySelector('.script-block.focus-active').dataset.blockId,script.blocks[1].id);
   dom.window.close();
