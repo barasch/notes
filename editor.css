@@ -139,12 +139,12 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 /* Script editor */
 .editor-paper.script-mode { padding-bottom: 6rem; }
 .editor-paper.script-mode .edit-title { width: min(612pt, 100%); margin-bottom: 2.5rem; font-family: et-book, Palatino, Georgia, serif !important; }
-.script-editor { position: relative; min-height: 30rem; color: var(--ink); font-family: Courier, "Courier New", monospace; font-size: 12pt; line-height: 12pt; }
+.script-editor { position: relative; min-height: 30rem; outline: none; color: var(--ink); font-family: Courier, "Courier New", monospace; font-size: 12pt; line-height: 12pt; }
 .script-editor[hidden], .scene-rail[hidden], #scriptViewOptions[hidden] { display: none; }
 .script-continuous { box-sizing: border-box; width: 612pt; min-height: 30rem; padding: 24pt 72pt 60pt 108pt; background: transparent; }
 .script-block { position: relative; box-sizing: border-box; min-height: 12pt; margin: 0 0 12pt; }
 .script-text { min-height: 12pt; outline: none; white-space: pre-wrap; overflow-wrap: break-word; }
-.script-text:focus { background: color-mix(in srgb, var(--rule) 40%, transparent); }
+.script-text.script-editing-active { background: color-mix(in srgb, var(--rule) 40%, transparent); }
 .script-act { width: 432pt; text-align: center; text-transform: uppercase; }
 .script-scene, .script-action { width: 432pt; }
 .script-scene { font-weight: bold; text-transform: uppercase; }

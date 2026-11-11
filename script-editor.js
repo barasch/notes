@@ -23,17 +23,19 @@ function caretOffset(element) {
 
 function setCaret(element,offset) {
   const ownerDocument=element.ownerDocument,view=ownerDocument.defaultView;
+  const host=element.closest('[data-script-editor-host]')||element;
+  host.focus();
   const walker=ownerDocument.createTreeWalker(element,view.NodeFilter.SHOW_TEXT);
   let node,remaining=Math.max(0,offset);
   while((node=walker.nextNode())) {
     if(remaining<=node.length) {
       const range=ownerDocument.createRange();range.setStart(node,remaining);range.collapse(true);
-      element.focus();const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);return;
+      const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);return;
     }
     remaining-=node.length;
   }
-  const range=ownerDocument.createRange();range.selectNodeContents(element);range.collapse(false);
-  element.focus();const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);
+  const range=ownerDocument.createRange();range.setStart(element,element.textContent?element.childNodes.length:0);range.collapse(true);
+  const selection=view.getSelection();selection.removeAllRanges();selection.addRange(range);
 }
 
 function elementWidth(type,dual=false) {
@@ -45,6 +47,8 @@ export class ScriptEditor {
   constructor({container,sceneRail,styleSelector,onChange=()=>{},onSelection=()=>{}}) {
     this.container=container;this.sceneRail=sceneRail;this.styleSelector=styleSelector;
     this.ownerDocument=container.ownerDocument;this.window=this.ownerDocument.defaultView;
+    container.setAttribute('contenteditable','true');container.dataset.scriptEditorHost='true';
+    container.setAttribute('role','textbox');container.setAttribute('aria-multiline','true');
     this.onChange=onChange;this.onSelection=onSelection;this.document=null;
     try {this.view=localStorage.getItem('writer-script-view')==='pageless'?'pageless':'page';}
     catch {this.view='page';}
@@ -58,7 +62,7 @@ export class ScriptEditor {
     container.addEventListener('beforeinput',event=>this.handleBeforeInput(event),true);
     container.addEventListener('keydown',event=>this.handleKeydown(event));
     container.addEventListener('compositionstart',()=>{this.composing=true;clearTimeout(this.renderTimer);this.renderTimer=null;});
-    container.addEventListener('compositionend',event=>{this.composing=false;const field=event.target.closest?.('[data-script-editable]');if(field)this.afterInput(field);});
+    container.addEventListener('compositionend',()=>{this.composing=false;const field=this.activeElement();if(field)this.afterInput(field);});
     container.addEventListener('click',event=>this.handleClick(event));
     container.addEventListener('focusin',event=>this.focusChanged(event));
     sceneRail?.addEventListener('click',event=>this.handleClick(event));
@@ -122,15 +126,15 @@ export class ScriptEditor {
 
   editable(block,{text=block.text,start=0,end=block.text.length,className='',position=null}={}) {
     const field=this.ownerDocument.createElement('div');
-    field.className=`script-text ${className}`.trim();field.contentEditable='true';
+    field.className=`script-text ${className}`.trim();
     field.spellcheck=!['scene','character','transition'].includes(block.type);
     field.dataset.scriptEditable='true';field.dataset.blockId=block.id;
     field.dataset.sourceStart=String(start);field.dataset.sourceEnd=String(end);
-    field.setAttribute('role','textbox');field.setAttribute('aria-label',`${block.type} text`);
     // Setting individual CSSOM properties remains compatible with the Writer's
     // strict style-src policy; assigning a complete style attribute does not.
     if(position)Object.assign(field.style,position);
-    field.textContent=text || '';
+    if(text)field.textContent=text;
+    else field.append(this.ownerDocument.createElement('br'));
     return field;
   }
 
@@ -143,7 +147,7 @@ export class ScriptEditor {
       if(block.type==='character') {
         const {cue,continued}=this.authoredCue(block,index);
         const field=this.editable(block,{text:cue});wrapper.append(field);
-        if(continued){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';marker.textContent=continued;wrapper.append(marker);}
+        if(continued){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';marker.setAttribute('contenteditable','false');marker.textContent=continued;wrapper.append(marker);}
       } else wrapper.append(this.editable(block));
       sheet.append(wrapper);
     }
@@ -184,7 +188,7 @@ export class ScriptEditor {
       const display=displayCharacterCue(this.document.blocks,index),suffix=display.slice(authored.length);
       let marker=wrapper.querySelector('.generated-continuation');
       if(!suffix){marker?.remove();continue;}
-      if(!marker){marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';field.after(marker);}
+      if(!marker){marker=this.ownerDocument.createElement('span');marker.className='generated-continuation';marker.setAttribute('contenteditable','false');field.after(marker);}
       marker.textContent=suffix;
     }
   }
@@ -216,6 +220,7 @@ export class ScriptEditor {
       for(const item of page.items) {
         if(item.generated||item.type==='page-number'||item.type==='more'||item.generatedContinued) {
           const generated=this.ownerDocument.createElement('div');generated.className=`script-line generated script-${item.type}`;
+          generated.setAttribute('contenteditable','false');
           generated.textContent=item.text;generated.style.left=`${item.x}pt`;generated.style.top=`${item.y}pt`;sheet.append(generated);continue;
         }
         const key=`${item.blockId}:${item.dualColumn||''}`;
@@ -238,7 +243,7 @@ export class ScriptEditor {
         if(block.type==='character') {
           const display=displayCharacterCue(this.document.blocks,this.blockIndex(block.id),{pageContinued:first.generatedContinued});
           const authored=stripManualContinued(block.text).trim().toUpperCase();
-          if(display.length>authored.length){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation page-generated';marker.textContent=display.slice(authored.length);marker.style.left=`${first.x+authored.length*SCRIPT_LAYOUT.charWidth}pt`;marker.style.top=`${first.y}pt`;sheet.append(marker);}
+          if(display.length>authored.length){const marker=this.ownerDocument.createElement('span');marker.className='generated-continuation page-generated';marker.setAttribute('contenteditable','false');marker.textContent=display.slice(authored.length);marker.style.left=`${first.x+authored.length*SCRIPT_LAYOUT.charWidth}pt`;marker.style.top=`${first.y}pt`;sheet.append(marker);}
         }
       }
       frame.append(sheet);this.container.append(frame);
@@ -272,31 +277,8 @@ export class ScriptEditor {
     return 0;
   }
 
-  inputBoundaryOffset(event,field,direction) {
-    const selection=this.window.getSelection();
-    if(selection?.rangeCount&&!selection.isCollapsed)return null;
-    const ranges=event.getTargetRanges?.()||[],target=ranges[0];
-    if(target) {
-      const collapsed=target.startContainer===target.endContainer&&target.startOffset===target.endOffset;
-      const boundaryNode=direction<0?target.endContainer:target.startContainer;
-      const boundaryPoint=direction<0?target.endOffset:target.startOffset;
-      const offset=textOffsetAt(field,boundaryNode,boundaryPoint);
-      if(offset!=null) {
-        const otherNode=direction<0?target.startContainer:target.endContainer;
-        const otherPoint=direction<0?target.startOffset:target.endOffset;
-        const otherOffset=textOffsetAt(field,otherNode,otherPoint);
-        if(collapsed||otherOffset==null)return offset;
-        return null;
-      }
-    }
-    if(selection?.rangeCount&&selection.isCollapsed) {
-      const offset=textOffsetAt(field,selection.anchorNode,selection.anchorOffset);if(offset!=null)return offset;
-    }
-    return field.textContent.length===0&&event.target===field?0:null;
-  }
-
   handleInput(event) {
-    const field=event.target.closest('[data-script-editable]');if(!field)return;
+    const field=event.target.closest?.('[data-script-editable]')||this.activeElement();if(!field)return;
     this.updateBlockFromElement(field);this.caret=this.captureCaret(field);this.onChange();
     if(event.isComposing||this.composing)return;
     this.afterInput(field);
@@ -426,14 +408,31 @@ export class ScriptEditor {
     this.commitStructuralChange({blockId:block.id,offset:start});
   }
 
-  mergeAtBoundary(field,direction,boundaryOffset=null) {
-    if(this.composing)return false;
-    let localOffset=boundaryOffset;
-    if(localOffset==null) {
-      const selection=this.window.getSelection();
-      if(!selection?.rangeCount||!selection.isCollapsed)return false;
-      localOffset=textOffsetAt(field,selection.anchorNode,selection.anchorOffset);if(localOffset==null)return false;
+  deleteSelectedRange(range) {
+    const startField=(range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement)?.closest?.('[data-script-editable]');
+    const endField=(range.endContainer.nodeType===1?range.endContainer:range.endContainer.parentElement)?.closest?.('[data-script-editable]');
+    if(!startField||!endField||startField===endField)return false;
+    const startLocal=textOffsetAt(startField,range.startContainer,range.startOffset);
+    const endLocal=textOffsetAt(endField,range.endContainer,range.endOffset);
+    if(startLocal==null||endLocal==null)return false;
+    const startIndex=this.blockIndex(startField.dataset.blockId),endIndex=this.blockIndex(endField.dataset.blockId);
+    if(startIndex<0||endIndex<startIndex)return false;
+    const startBlock=this.document.blocks[startIndex],endBlock=this.document.blocks[endIndex];
+    const start=Number(startField.dataset.sourceStart||0)+startLocal;
+    const end=Number(endField.dataset.sourceStart||0)+endLocal;
+    if(startBlock===endBlock)startBlock.text=startBlock.text.slice(0,start)+startBlock.text.slice(end);
+    else {
+      startBlock.text=startBlock.text.slice(0,start)+endBlock.text.slice(end);
+      this.document.blocks.splice(startIndex+1,endIndex-startIndex);
     }
+    this.commitStructuralChange({blockId:startBlock.id,offset:start});return true;
+  }
+
+  mergeAtBoundary(field,direction) {
+    if(this.composing)return false;
+    const selection=this.window.getSelection();
+    if(!selection?.rangeCount||!selection.isCollapsed)return false;
+    const localOffset=textOffsetAt(field,selection.anchorNode,selection.anchorOffset);if(localOffset==null)return false;
     const localLength=field.textContent.length;
     if(direction<0?localOffset!==0:localOffset!==localLength)return false;
     const index=this.blockIndex(field.dataset.blockId),block=this.document.blocks[index];if(index<0||!block)return false;
@@ -447,7 +446,7 @@ export class ScriptEditor {
     if(direction<0&&block.dualWithPrevious) {
       delete block.dualWithPrevious;this.commitStructuralChange({blockId:block.id,offset:0});return true;
     }
-    const adjacent=this.document.blocks[index+direction];if(!adjacent)return false;
+    const adjacent=this.document.blocks[index+direction];if(!adjacent)return true;
     if(direction>0&&adjacent.dualWithPrevious) {
       delete adjacent.dualWithPrevious;this.commitStructuralChange({blockId:block.id,offset:block.text.length});return true;
     }
@@ -474,11 +473,17 @@ export class ScriptEditor {
   }
 
   handleBeforeInput(event) {
-    const field=event.target.closest?.('[data-script-editable]');if(!field||event.isComposing||this.composing)return;
+    if(event.isComposing||this.composing)return;
+    const field=event.target.closest?.('[data-script-editable]')||this.activeElement();
+    if(!field){event.preventDefault();return;}
     const direction=this.deletionDirection(event.inputType);
-    if(direction) {
-      const offset=this.inputBoundaryOffset(event,field,direction);
-      if(offset!=null&&this.mergeAtBoundary(field,direction,offset)) {
+    if(event.inputType.startsWith('delete')) {
+      const selection=this.window.getSelection();
+      if(selection?.rangeCount&&!selection.isCollapsed) {
+        if(this.deleteSelectedRange(selection.getRangeAt(0)))event.preventDefault();
+        return;
+      }
+      if(direction&&this.mergeAtBoundary(field,direction)) {
         event.preventDefault();return;
       }
     }
@@ -487,21 +492,14 @@ export class ScriptEditor {
   }
 
   handleKeydown(event) {
-    const field=event.target.closest('[data-script-editable]');if(!field)return;
+    const field=event.target.closest?.('[data-script-editable]')||this.activeElement();if(!field)return;
     if(this.suggestion&&this.handleSuggestionKey(event,field))return;
-    if((event.key==='Backspace'||event.key==='Delete')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
-      if(this.mergeAtBoundary(field,event.key==='Backspace'?-1:1))event.preventDefault();
-      return;
-    }
     if(event.key==='Tab'&&!event.altKey&&!event.ctrlKey&&!event.metaKey) {
       event.preventDefault();const block=this.block(field.dataset.blockId);
       const next=cycleScriptType(block.type,event.shiftKey);if(next===block.type)return;
       block.type=next;if(next==='parenthetical'&&!block.text.trim()){block.text='()';this.caret={blockId:block.id,offset:1};}
       else this.caret=this.captureCaret(field);
       delete block.dualWithPrevious;this.onChange();this.render(true);return;
-    }
-    if(event.key==='Enter'&&!event.altKey&&!event.ctrlKey&&!event.metaKey) {
-      event.preventDefault();this.splitElement(field,{soft:event.shiftKey});return;
     }
     if((event.key==='ArrowUp'||event.key==='ArrowDown')&&!event.altKey&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey) {
       const direction=event.key==='ArrowUp'?-1:1;
@@ -525,7 +523,7 @@ export class ScriptEditor {
 
   updateSuggestions(field) {
     this.closeSuggestions();const values=this.suggestionValues(field);if(!values.length)return;
-    const list=this.ownerDocument.createElement('div');list.className='script-suggestions';list.role='listbox';
+    const list=this.ownerDocument.createElement('div');list.className='script-suggestions';list.role='listbox';list.setAttribute('contenteditable','false');
     values.forEach((value,index)=>{const button=this.ownerDocument.createElement('button');button.type='button';button.role='option';button.dataset.value=value;button.textContent=value;button.classList.toggle('selected',index===0);list.append(button);});
     const parent=field.closest('.script-block,.script-page');
     if(parent?.classList.contains('script-page')) {
@@ -560,7 +558,7 @@ export class ScriptEditor {
     const suggestion=event.target.closest('.script-suggestions button');
     if(suggestion){const field=this.suggestion?.field;if(field)this.acceptSuggestion(field,suggestion.dataset.value);return;}
     const scene=event.target.closest('[data-scene-id]');
-    if(scene){const field=this.container.querySelector(`[data-script-editable][data-block-id="${CSS.escape(scene.dataset.sceneId)}"]`);field?.scrollIntoView({block:'center'});field?.focus();}
+    if(scene){const field=this.container.querySelector(`[data-script-editable][data-block-id="${CSS.escape(scene.dataset.sceneId)}"]`);field?.scrollIntoView({block:'center'});if(field)setCaret(field,0);}
     const field=event.target.closest('[data-script-editable]');
     if(field)this.updateFocusUnit(field,{recenter:true});
   }
@@ -568,6 +566,8 @@ export class ScriptEditor {
   selectionChanged() {
     const field=this.activeElement();if(!field||!this.container.contains(field))return;
     const block=this.block(field.dataset.blockId);if(!block)return;
+    const previous=this.container.querySelector('.script-editing-active');
+    if(previous!==field){previous?.classList.remove('script-editing-active');field.classList.add('script-editing-active');}
     const key=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
     const selectionKey=`${key}:${block.type}`;if(selectionKey===this.selectionKey)return;
     this.selectionKey=selectionKey;
@@ -576,7 +576,7 @@ export class ScriptEditor {
   }
 
   focusChanged(event) {
-    const field=event.target.closest?.('[data-script-editable]');if(!field)return;
+    const field=event.target.closest?.('[data-script-editable]')||this.activeElement();if(!field)return;
     const key=`${field.dataset.blockId}:${field.dataset.sourceStart||0}`;
     this.updateFocusUnit(field,{recenter:this.focusMode&&this.view==='pageless'&&key!==this.focusKey});
   }
@@ -671,7 +671,7 @@ export class ScriptEditor {
   }
 
   pageModel() { this.lastPageModel=paginateScript(this.document);return this.lastPageModel; }
-  focusFirst() {this.container.querySelector('[data-script-editable]')?.focus();}
+  focusFirst() {const field=this.container.querySelector('[data-script-editable]');if(field)setCaret(field,0);}
   destroy() {
     clearTimeout(this.renderTimer);clearTimeout(this.sceneTimer);
     this.ownerDocument.removeEventListener('selectionchange',this.selectionListener);

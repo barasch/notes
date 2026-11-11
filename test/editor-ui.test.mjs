@@ -503,15 +503,19 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.equal(document.getElementById('sceneRail').hidden,false);
   assert.equal(document.getElementById('menuScenes').textContent,'Hide scene list');
 
+  const scriptHost=document.getElementById('scriptEditor');
   const field=()=>document.querySelector('#scriptEditor [data-script-editable]');
-  field().textContent='INT. ROOM - DAY';field().dispatchEvent(new window.Event('input',{bubbles:true}));
-  field().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
   const last=()=>[...document.querySelectorAll('#scriptEditor [data-script-editable]')].at(-1);
-  last().textContent='John enters.';last().dispatchEvent(new window.Event('input',{bubbles:true}));
-  last().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
-  last().textContent='JOHN';last().dispatchEvent(new window.Event('input',{bubbles:true}));
-  last().dispatchEvent(new window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));
-  last().textContent='Hello.';last().dispatchEvent(new window.Event('input',{bubbles:true}));
+  const selectEnd=element=>{
+    const range=document.createRange();range.selectNodeContents(element);range.collapse(false);
+    scriptHost.focus();window.getSelection().removeAllRanges();window.getSelection().addRange(range);
+  };
+  const typeScript=(element,text)=>{element.textContent=text;selectEnd(element);scriptHost.dispatchEvent(new window.Event('input',{bubbles:true}));};
+  const scriptCommand=inputType=>scriptHost.dispatchEvent(new window.InputEvent('beforeinput',{inputType,bubbles:true,cancelable:true}));
+  typeScript(field(),'INT. ROOM - DAY');scriptCommand('insertParagraph');
+  typeScript(last(),'John enters.');scriptHost.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true}));
+  typeScript(last(),'JOHN');scriptCommand('insertParagraph');
+  typeScript(last(),'Hello.');
 
   document.dispatchEvent(new window.KeyboardEvent('keydown',{key:'s',metaKey:true,bubbles:true,cancelable:true}));
   await until(()=>files.has('drafts/scripts/test-script.json'));

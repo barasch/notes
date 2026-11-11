@@ -8,7 +8,7 @@
   <title>Writer</title>
   <link rel="icon" type="image/png" href="favicon.png"/>
   <link rel="stylesheet" href="tufte.css"/>
-  <link rel="stylesheet" href="editor.css?v=20261106-1"/>
+  <link rel="stylesheet" href="editor.css?v=20261111-1"/>
 </head>
 <body class="editor-app">
   <div id="setupView" class="gate" hidden>
@@ -142,7 +142,7 @@
         </div>
         <section class="editor-section" id="editorSection">
           <div id="editorBody" class="editor-body" contenteditable="true" role="textbox" aria-label="Note body" aria-multiline="true" spellcheck="true"><p><br></p></div>
-          <div id="scriptEditor" class="script-editor" aria-label="Script body" hidden></div>
+          <div id="scriptEditor" class="script-editor" contenteditable="true" role="textbox" aria-label="Script body" aria-multiline="true" hidden></div>
           <div id="noteRail" class="note-rail" aria-label="Margin notes"></div>
           <nav id="sceneRail" class="scene-rail" aria-label="Scenes" hidden></nav>
         </section>
@@ -158,6 +158,6 @@
     </form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-  <script type="module" src="editor.js?v=20261106-2"></script>
+  <script type="module" src="editor.js?v=20261111-1"></script>
 </body>
 </html>

@@ -7,7 +7,7 @@ import {
 } from './editor-core.js?v=20261106-1';
 import {newScript, scriptToFountain} from './script-core.js?v=20261106-1';
 import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
-import {ScriptEditor} from './script-editor.js?v=20261106-2';
+import {ScriptEditor} from './script-editor.js?v=20261111-1';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
