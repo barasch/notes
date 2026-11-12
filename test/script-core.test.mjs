@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   AUTHORED_CHARACTER_EXTENSIONS, canDualWithPrevious, characterIdentity,
   cycleScriptType, deriveCharacters, deriveScenes, displayCharacterCue,
-  hasInterruptedContinuation, newScript, newScriptBlock, nextScriptType,
+  hasInterruptedContinuation, isScriptBlockEmpty, newScript, newScriptBlock, nextScriptType,
   scriptToFountain, setDualWithPrevious, stripManualContinued, validateScript,
 } from '../script-core.js';
 
@@ -20,6 +20,16 @@ test('script model validates the seven elements and follows keyboard transitions
   assert.equal(cycleScriptType('act'), 'scene');
   assert.equal(cycleScriptType('dialogue'), 'dialogue');
   assert.equal(cycleScriptType('transition'), 'transition');
+});
+
+test('logical emptiness includes Parenthetical scaffolding and omits placeholders from Fountain', () => {
+  assert.equal(isScriptBlockEmpty(block('action','  ')),true);
+  assert.equal(isScriptBlockEmpty(block('parenthetical','()')),true);
+  assert.equal(isScriptBlockEmpty(block('parenthetical','(quietly)')),false);
+  const script=newScript();script.blocks=[
+    block('character','JOHN'),block('parenthetical','()'),block('dialogue','Hello.'),
+  ];
+  assert.doesNotMatch(scriptToFountain(script),/^\(\)$/m);
 });
 
 test('character identity removes extension chains and CONT\'D remains computed', () => {
