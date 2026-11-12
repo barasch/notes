@@ -1,13 +1,13 @@
 import {
-  AUTH_PATH, DRAFT_REPOSITORY, PUBLIC_REPOSITORY, GitHub, draftPath, documentKind,
+  AUTH_PATH, DRAFT_BRANCH, DRAFT_REPOSITORY, PUBLIC_REPOSITORY, GitHub, draftPath, documentKind,
   slugify, newNote, validateDocument, cleanInline,
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
 } from './editor-core.js?v=20261106-1';
-import {newScript, scriptToFountain} from './script-core.js?v=20261106-1';
+import {newScript, scriptToFountain} from './script-core.js?v=20261111-1';
 import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
-import {ScriptEditor} from './script-editor.js?v=20261111-1';
+import {ScriptEditor} from './script-editor.js?v=20261111-3';
 
 const $ = id => document.getElementById(id);
 const views = ['setupView','unlockView','dashboardView','workspace'];
@@ -16,6 +16,7 @@ let credential = null, credentialSha = null, key = null, token = null;
 let publicGithub = new GitHub('',PUBLIC_REPOSITORY), draftGithub = new GitHub('',DRAFT_REPOSITORY);
 let note = null, revision = 0, localRevision = -1;
 let saveTimer = null, continuousTimer = null, overdueTimer = null, localWrite = null;
+let diagnosticTimer = null, diagnosticWrite = null, diagnosticPending = false, diagnosticSession = '', diagnosticSha = null;
 let localStatus = '';
 let selectedRange = null, selectedEditable = body, dialogContext = null, busy = false;
 const mediaQuery=(query,fallback)=>window.matchMedia?.(query)||{get matches(){return fallback();}};
@@ -371,7 +372,31 @@ function openNote(noteId) {
 const scriptEditor=new ScriptEditor({
   container:$('scriptEditor'),sceneRail:$('sceneRail'),styleSelector:$('styleSelector'),
   onChange:()=>markChanged(),onSelection:type=>{setStyleValue(type);updateDocumentCommands();},
+  onDiagnostics:()=>scheduleInputDiagnosticUpload(),
 });
+
+function scheduleInputDiagnosticUpload() {
+  if(documentKind(note)!=='script'||!token)return;
+  clearTimeout(diagnosticTimer);diagnosticTimer=setTimeout(()=>uploadInputDiagnostics(),1200);
+}
+
+async function uploadInputDiagnostics() {
+  diagnosticTimer=null;
+  if(documentKind(note)!=='script'||!token)return;
+  if(diagnosticWrite){diagnosticPending=true;return;}
+  const log=scriptEditor.inputDiagnosticLog(),session=log.sessionId;
+  if(session!==diagnosticSession){diagnosticSession=session;diagnosticSha=null;}
+  const path=`diagnostics/writer-input-${session}.json`,savedSequence=log.entries.at(-1)?.sequence||0;
+  diagnosticWrite=draftGithub.writeFile(path,JSON.stringify(log,null,2)+'\n',DRAFT_BRANCH,diagnosticSha)
+    .then(result=>{if(diagnosticSession===session)diagnosticSha=result.content.sha;})
+    .catch(error=>{console.error('Could not save input diagnostics.',error);notice('Input diagnostics could not be saved.',true);})
+    .finally(()=>{
+      diagnosticWrite=null;
+      const current=scriptEditor.inputDiagnosticLog(),changed=current.sessionId!==session||(current.entries.at(-1)?.sequence||0)>savedSequence;
+      if(diagnosticPending||changed){diagnosticPending=false;scheduleInputDiagnosticUpload();}
+    });
+  await diagnosticWrite;
+}
 
 function styleDefinitions(kind) {
   return kind==='script'

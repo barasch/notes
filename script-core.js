@@ -71,6 +71,12 @@ export function newScriptBlock(type = 'action', text = '') {
   return {id: uuid(), type, text: String(text)};
 }
 
+export function isScriptBlockEmpty(block) {
+  let value=String(block?.text||'').trim();
+  if(block?.type==='parenthetical'&&/^\(\s*\)$/u.test(value))value='';
+  return value.length===0;
+}
+
 export function nextScriptType(type) {
   return ({
     act: 'scene',
@@ -203,7 +209,7 @@ export function scriptToFountain(script) {
   for (let index = 0; index < script.blocks.length; index++) {
     const block = script.blocks[index];
     const text = block.text.trim();
-    if (!text) continue;
+    if (isScriptBlockEmpty(block)) continue;
     if (block.type === 'act') pushSeparated(`# ${text.toUpperCase()}`);
     else if (block.type === 'scene') pushSeparated(fountainScene(text));
     else if (block.type === 'action') pushSeparated(forceAction(text));
