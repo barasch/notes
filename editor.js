@@ -4,7 +4,7 @@ import {
   blocksFromEditor, editorBlockHTML, tableHTML, createCredential, unlockCredential, safeURL,
   safeImageURL, seal, recoveryPut, recoveryAll, recoveryDelete, localISODate, smartQuote,
   smartApostrophePrefix, sameDraftContent, normalizeEmbedCode,
-} from './editor-core.js?v=20261106-1';
+} from './editor-core.js?v=20261113-1';
 import {newScript, scriptToFountain} from './script-core.js?v=20261111-1';
 import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
 import {ScriptEditor} from './script-editor.js?v=20261112-1';
@@ -296,15 +296,20 @@ function focusHeading() {
 function ensureReferenceTail(marker) {
   const block=marker.closest('p,h2,h3');
   if(block?.parentElement!==body) return null;
+  let sibling=marker.nextSibling;
+  if(sibling?.nodeType===1 && sibling.hasAttribute('data-note-tail')) {
+    const text=document.createTextNode(sibling.textContent);
+    sibling.replaceWith(text);sibling=text;
+  }
   const after=document.createRange();after.setStartAfter(marker);after.setEnd(block,block.childNodes.length);
   if(after.toString().replace(/\u200b/g,'').trim()) return null;
-  let sibling=marker.nextSibling;
-  while(sibling?.nodeType===3 && !sibling.textContent) sibling=sibling.nextSibling;
-  if(sibling?.nodeType===1 && sibling.hasAttribute('data-note-tail')) return sibling;
-  const tail=document.createElement('span');tail.className='editor-note-tail';tail.dataset.noteTail='true';
-  tail.contentEditable='true';tail.append(document.createTextNode('\u200b'));
-  marker.after(tail);
-  return tail;
+  if(sibling?.nodeType===3) {
+    if(!sibling.textContent)sibling.textContent='\u200b';
+    return sibling;
+  }
+  const caret=document.createTextNode('\u200b');
+  marker.after(caret);
+  return caret;
 }
 function refreshBody() {
   body.innerHTML=note.blocks.map(block=>editorBlockHTML(block,note)).join('') || '<h2><br></h2>';
@@ -317,11 +322,10 @@ function renderNote(noteId) {
   const remove=document.createElement('button'); remove.type='button'; remove.textContent='×'; remove.title='Remove note';
   remove.addEventListener('click',()=>{
     const current=body.querySelector(`[data-note-id="${CSS.escape(noteId)}"]`);
-    const tail=current?.nextElementSibling;
-    if(tail?.hasAttribute('data-note-tail')) {
-      const text=tail.textContent.replace(/\u200b/g,'');
-      if(text) tail.replaceWith(document.createTextNode(text));
-      else tail.remove();
+    const after=current?.nextSibling;
+    if(after?.nodeType===3&&after.textContent.startsWith('\u200b')) {
+      after.textContent=after.textContent.slice(1);
+      if(!after.textContent)after.remove();
     }
     current?.remove(); delete note.notes[noteId]; aside.remove(); markChanged(); layoutNotes();
   });
@@ -670,7 +674,7 @@ function insertNote(type) {
   const selection=window.getSelection(), range=selection.getRangeAt(0);
   range.collapse(false);range.insertNode(marker);range.setStartAfter(marker);range.collapse(true);
   const tail=ensureReferenceTail(marker);
-  if(tail) range.setStart(tail.firstChild,tail.firstChild.length);
+  if(tail) range.setStart(tail,tail.length);
   selection.removeAllRanges();selection.addRange(range);
   note.notes[id]={type,html:''};
   markChanged();layoutNotes();openNote(id);
