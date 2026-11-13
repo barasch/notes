@@ -4,7 +4,7 @@ import {
   isScriptBlockEmpty, newScriptBlock, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
 } from './script-core.js?v=20261111-1';
 import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?v=20261106-1';
-import {ScriptInputDiagnostics} from './script-input-debug.js?v=20261111-1';
+import {ScriptInputDiagnostics} from './script-input-debug.js?v=20261112-1';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -43,7 +43,7 @@ function elementWidth(type,dual=false) {
 }
 
 export class ScriptEditor {
-  constructor({container,sceneRail,styleSelector,onChange=()=>{},onSelection=()=>{},onDiagnostics=()=>{}}) {
+  constructor({container,sceneRail,styleSelector,onChange=()=>{},onSelection=()=>{},onDiagnostics=()=>{},diagnosticsEnabled=false}) {
     this.container=container;this.sceneRail=sceneRail;this.styleSelector=styleSelector;
     this.ownerDocument=container.ownerDocument;this.window=this.ownerDocument.defaultView;
     this.onChange=onChange;this.onSelection=onSelection;this.onDiagnostics=onDiagnostics;this.document=null;
@@ -55,7 +55,7 @@ export class ScriptEditor {
     this.focusMode=false;this.focusKey='';this.recenterOnRender=false;
     this.composing=false;this.layoutDirty=false;this.layoutSignature='';this.layoutWidth=0;this.selectionKey='';
     this.characterEntries=[];
-    this.diagnostics=new ScriptInputDiagnostics(this);
+    this.diagnostics=new ScriptInputDiagnostics(this,{enabled:diagnosticsEnabled});
     container.addEventListener('input',event=>this.handleInput(event));
     container.addEventListener('beforeinput',event=>this.handleBeforeInput(event),true);
     container.addEventListener('keydown',event=>this.handleKeydown(event));

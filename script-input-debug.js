@@ -42,20 +42,22 @@ function keyName(key='') {
 }
 
 export class ScriptInputDiagnostics {
-  constructor(editor) {
+  constructor(editor,{enabled=false}={}) {
+    this.enabled=enabled;
     this.editor=editor;this.entries=[];this.dropped=0;this.sequence=0;this.lastSelection='';
-    this.sessionId=sessionId();
-    this.startedAt=new Date().toISOString();this.startedClock=globalThis.performance?.now?.()||Date.now();
+    this.sessionId='';this.startedAt='';this.startedClock=0;
   }
 
   reset() {
     this.entries=[];this.dropped=0;this.sequence=0;this.lastSelection='';
+    if(!this.enabled){this.sessionId='';this.startedAt='';this.startedClock=0;return;}
     this.sessionId=sessionId();
     this.startedAt=new Date().toISOString();this.startedClock=globalThis.performance?.now?.()||Date.now();
     this.record('session-start',{view:this.editor.view});
   }
 
   selection() {
+    if(!this.enabled)return null;
     const selection=this.editor.window.getSelection();
     if(!selection?.rangeCount)return {rangeCount:0,collapsed:true};
     const range=selection.getRangeAt(0);
@@ -67,6 +69,7 @@ export class ScriptInputDiagnostics {
   }
 
   model() {
+    if(!this.enabled)return null;
     return {
       view:this.editor.view,caret:this.editor.caret?{...this.editor.caret}:null,
       blocks:(this.editor.document?.blocks||[]).map(block=>({id:block.id,type:block.type,length:block.text.length,dualWithPrevious:Boolean(block.dualWithPrevious)})),
@@ -74,12 +77,14 @@ export class ScriptInputDiagnostics {
   }
 
   record(kind,detail={}) {
+    if(!this.enabled)return;
     if(this.entries.length>=MAX_ENTRIES){this.dropped++;return;}
     const clock=globalThis.performance?.now?.()||Date.now();
     this.entries.push({sequence:++this.sequence,ms:Math.round((clock-this.startedClock)*10)/10,kind,...detail});
   }
 
   recordEvent(event,stage) {
+    if(!this.enabled)return;
     let targetRanges=[];
     try {
       targetRanges=[...(event.getTargetRanges?.()||[])].map(range=>({
@@ -99,12 +104,14 @@ export class ScriptInputDiagnostics {
   }
 
   recordSelection() {
+    if(!this.enabled)return;
     const selection=this.selection(),signature=JSON.stringify(selection);
     if(signature===this.lastSelection)return;
     this.lastSelection=signature;this.record('selection',{selection});
   }
 
   export() {
+    if(!this.enabled)return {enabled:false,entries:[]};
     const navigator=this.editor.window.navigator,screen=this.editor.window.screen;
     return {
       version:1,privacy:'No authored text, typed characters, token values, or credentials are recorded.',

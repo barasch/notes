@@ -523,14 +523,9 @@ test('New Script uses private script storage and exposes screenplay controls wit
   const saved=JSON.parse(files.get('drafts/scripts/test-script.json').text);
   assert.equal(saved.kind,'script');assert.deepEqual(saved.blocks.map(block=>block.type),['scene','character','dialogue']);
   assert.equal(files.has('drafts/notes/test-script.json'),false);
-  await until(()=>[...files.keys()].some(path=>path.startsWith('diagnostics/writer-input-')));
-  const diagnosticPath=[...files.keys()].find(path=>path.startsWith('diagnostics/writer-input-'));
-  const diagnostic=JSON.parse(files.get(diagnosticPath).text);
-  assert.equal(diagnostic.privacy,'No authored text, typed characters, token values, or credentials are recorded.');
-  assert.ok(diagnostic.entries.some(entry=>entry.kind==='event'));
   const scriptRequests=apiRequests.slice(requestStart);
   assert.ok(scriptRequests.some(request=>request.repository==='writer-private'&&request.method==='PUT'&&request.path==='/contents/drafts/scripts/test-script.json'));
-  assert.ok(scriptRequests.some(request=>request.repository==='writer-private'&&request.method==='PUT'&&request.path===`/contents/${diagnosticPath}`));
+  assert.equal(scriptRequests.some(request=>request.path.startsWith('/contents/diagnostics/writer-input-')),false);
   assert.equal(scriptRequests.some(request=>request.repository==='notes'&&request.path.startsWith('/contents/drafts/')),false);
   assert.match(location.search,/kind=script/);
 
