@@ -7,9 +7,11 @@ import {
 } from './editor-core.js?v=20261106-1';
 import {newScript, scriptToFountain} from './script-core.js?v=20261111-1';
 import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
-import {ScriptEditor} from './script-editor.js?v=20261111-3';
+import {ScriptEditor} from './script-editor.js?v=20261112-1';
 
 const $ = id => document.getElementById(id);
+// Temporary diagnostic code remains installed for targeted reactivation.
+const SCRIPT_INPUT_DIAGNOSTICS_ENABLED=false;
 const views = ['setupView','unlockView','dashboardView','workspace'];
 const body = $('editorBody');
 let credential = null, credentialSha = null, key = null, token = null;
@@ -372,17 +374,18 @@ function openNote(noteId) {
 const scriptEditor=new ScriptEditor({
   container:$('scriptEditor'),sceneRail:$('sceneRail'),styleSelector:$('styleSelector'),
   onChange:()=>markChanged(),onSelection:type=>{setStyleValue(type);updateDocumentCommands();},
-  onDiagnostics:()=>scheduleInputDiagnosticUpload(),
+  diagnosticsEnabled:SCRIPT_INPUT_DIAGNOSTICS_ENABLED,
+  onDiagnostics:()=>{if(SCRIPT_INPUT_DIAGNOSTICS_ENABLED)scheduleInputDiagnosticUpload();},
 });
 
 function scheduleInputDiagnosticUpload() {
-  if(documentKind(note)!=='script'||!token)return;
+  if(!SCRIPT_INPUT_DIAGNOSTICS_ENABLED||documentKind(note)!=='script'||!token)return;
   clearTimeout(diagnosticTimer);diagnosticTimer=setTimeout(()=>uploadInputDiagnostics(),1200);
 }
 
 async function uploadInputDiagnostics() {
   diagnosticTimer=null;
-  if(documentKind(note)!=='script'||!token)return;
+  if(!SCRIPT_INPUT_DIAGNOSTICS_ENABLED||documentKind(note)!=='script'||!token)return;
   if(diagnosticWrite){diagnosticPending=true;return;}
   const log=scriptEditor.inputDiagnosticLog(),session=log.sessionId;
   if(session!==diagnosticSession){diagnosticSession=session;diagnosticSha=null;}

@@ -358,7 +358,7 @@ test('ordinary beforeinput remains native when diagnostic target ranges are unav
 test('temporary diagnostics record structure and ranges without authored text',()=>{
   const dom=environment(),script=newScript();
   const privateText='NEVER_RECORD_THIS_SCRIPT_TEXT_8461';script.blocks=[newScriptBlock('action',privateText)];
-  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles'),diagnosticsEnabled:true});
   editor.load(script);const field=document.querySelector('[data-script-editable]');placeCaret(field,3);
   const range={startContainer:field.firstChild,startOffset:3,endContainer:field.firstChild,endOffset:3};
   beforeInput(field,'insertText',{data:'PRIVATE_TYPED_VALUE',targetRanges:[range]});
@@ -367,6 +367,13 @@ test('temporary diagnostics record structure and ranges without authored text',(
   assert.doesNotMatch(serialized,/NEVER_RECORD_THIS_SCRIPT_TEXT_8461|PRIVATE_TYPED_VALUE|KeyX/);
   assert.ok(log.entries.some(entry=>entry.kind==='event'&&entry.targetRanges?.length===1));
   assert.ok(log.finalModel.blocks.every(block=>Number.isInteger(block.length)&&!('text' in block)));
+  dom.window.close();
+});
+
+test('temporary diagnostics are disabled by default',()=>{
+  const dom=environment(),editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles')});
+  editor.load(newScript());
+  assert.deepEqual(editor.inputDiagnosticLog(),{enabled:false,entries:[]});
   dom.window.close();
 });
 
