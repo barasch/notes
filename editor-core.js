@@ -149,8 +149,9 @@ export function cleanInline(html, notes, {published = false, allowNotes = true} 
       return `${label}<input type="checkbox" id="${noteId}" class="margin-toggle"/><span class="${note.type === 'margin' ? 'marginnote' : 'sidenote'}">${cleanInline(note.html, notes, {allowNotes:false})}</span>`;
     }
     if (tag === 'span' && allowNotes && node.hasAttribute('data-note-tail')) {
-      const inner=walkChildren([...node.childNodes]);
-      return published ? inner : `<span class="editor-note-tail" data-note-tail="true" contenteditable="true">${inner || '&#8203;'}</span>`;
+      // Older drafts placed text after a reference inside another editing host.
+      // Bring that text back into the paragraph's single editing host.
+      return walkChildren([...node.childNodes]);
     }
     const inner = walkChildren([...node.childNodes]);
     if (tag === 'br') return '<br>';

@@ -46,6 +46,16 @@ test('slug and generated article preserve note anchors and reject pasted scripts
   assert.equal(cleanInline('<u>Underlined</u>',{}),'<u>Underlined</u>');
 });
 
+test('older Note drafts unwrap text after a sidenote into the paragraph',()=>{
+  const note=newNote();note.title='A note';note.slug='a-note';
+  note.notes.n1={type:'sidenote',html:'Source'};
+  note.blocks=[{type:'p',html:'Before<span data-note-id="n1">·</span><span class="editor-note-tail" data-note-tail="true" contenteditable="true">&#8203; after <em>emphasis</em></span>'}];
+  const html=editorBlockHTML(note.blocks[0],note);
+  assert.match(html,/Before<span class="editor-reference"[^>]*>·<\/span>\u200b after <em>emphasis<\/em>/);
+  assert.doesNotMatch(html,/data-note-tail|editor-note-tail/);
+  assert.doesNotMatch(renderPublishedPage(note),/data-note-tail|\u200b/);
+});
+
 test('tables, images, and index entries publish as semantic HTML without duplicate links',()=>{
   const note=newNote();note.slug='numbers';note.title='Numbers';note.publicationDate='2026-09-13';
   note.objects.t1={type:'table',caption:'Annual figures',tsv:'Year\tTotal\n2024\t1,200\n2025\t2,500',fullwidth:true};
