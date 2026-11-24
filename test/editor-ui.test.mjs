@@ -121,6 +121,7 @@ test('setup, encrypted local autosave, and reload require a passphrase without w
     ['replace-token','lock','drafts','save','save-as','revert','publish','dual','scenes','export-menu','insert-menu','focus'],
   );
   assert.equal(document.querySelector('#workspace .site-wordmark span').textContent,'Writer');
+  assert.equal(document.getElementById('workspaceWordmark').getAttribute('aria-label'),'All drafts');
   document.querySelector('[data-theme=dark]').click();
   assert.equal(document.documentElement.dataset.theme,'dark');
   assert.equal(document.querySelector('[data-theme=dark]').getAttribute('aria-checked'),'true');
@@ -551,7 +552,12 @@ test('New Script uses private script storage and exposes screenplay controls wit
   assert.match(editorCSS,/\.script-page-frame \{[^}]*position: relative;[^}]*width: 612pt;[^}]*height: 792pt/);
   assert.match(editorCSS,/@media \(max-width: 760px\)[\s\S]*\.script-editor \{[^}]*overflow-x: hidden/);
   assert.match(editorCSS,/@media \(max-width: 760px\)[\s\S]*\.script-continuous \{[^}]*width: 100%;[^}]*font-size: 16px/);
+  assert.match(editorCSS,/\.gate input \{ font-size: 16px; \}/);
   assert.match(editorCSS,/\.command-menu button\[hidden\][^}]*display: none/);
+  document.getElementById('workspaceWordmark').click();
+  await until(()=>!document.getElementById('dashboardView').hidden);
+  assert.equal(document.getElementById('unlockView').hidden,true);
+  assert.equal(location.search,'');
   await new Promise(resolve=>setTimeout(resolve,150));
   dom.window.close();
 });
