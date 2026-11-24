@@ -10,8 +10,8 @@ import {downloadScriptPdf} from './script-pdf.js?v=20261106-1';
 import {ScriptEditor} from './script-editor.js?v=20261112-1';
 
 const $ = id => document.getElementById(id);
-// Temporary diagnostic code can be paused after the next mobile test.
-const SCRIPT_INPUT_DIAGNOSTICS_ENABLED=true;
+// Keep diagnostic instrumentation available for a targeted future test.
+const SCRIPT_INPUT_DIAGNOSTICS_ENABLED=false;
 const views = ['setupView','unlockView','dashboardView','workspace'];
 const body = $('editorBody');
 let credential = null, credentialSha = null, key = null, token = null;
