@@ -1097,6 +1097,10 @@ for(const button of document.querySelectorAll('[data-new-kind]')) button.addEven
   loadNote(button.dataset.newKind==='script'?newScript():newNote());markChanged();$('noteTitle').focus();
 });
 $('dashboardLock').addEventListener('click',lock);
+$('workspaceWordmark').addEventListener('click',event=>{
+  event.preventDefault();
+  showDashboard().catch(error=>notice(error.message,true));
+});
 $('noteTitle').addEventListener('input',event=>{repairLeadingApostrophe(event);resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
 $('noteSubtitle').addEventListener('input',event=>{repairLeadingApostrophe(event);resizeHeadingField(event.currentTarget);markChanged();updateCollapsedHeader();});
 $('noteTitle').addEventListener('beforeinput',insertSmartQuote);

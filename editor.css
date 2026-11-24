@@ -98,6 +98,7 @@ body.editor-app button:disabled { cursor: wait; opacity: .5; }
 .gate form { display: grid; gap: 1rem; margin-top: 2rem; font-family: var(--sans); }
 .gate label, .content-dialog label { display: grid; gap: .4rem; font-size: .85rem; }
 .gate input, .content-dialog input, .content-dialog textarea { box-sizing: border-box; width: 100%; border: 1px solid var(--rule); padding: .65rem; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+.gate input { font-size: 16px; }
 .gate form > button[type=submit], .content-dialog button[type=submit], .draft-dashboard > button { width: fit-content; padding: .6rem 1rem; border: 1px solid var(--ink); background: var(--ink); color: var(--paper); font-family: var(--sans); font-size: .9rem; }
 .gate-error { color: #a53d32; }
 .draft-dashboard { padding-top: 5rem; }
