@@ -355,7 +355,7 @@ test('ordinary beforeinput remains native when diagnostic target ranges are unav
   dom.window.close();
 });
 
-test('temporary diagnostics record structure and ranges without authored text',()=>{
+test('temporary diagnostics record authored text and ranges when enabled',()=>{
   const dom=environment(),script=newScript();
   const privateText='NEVER_RECORD_THIS_SCRIPT_TEXT_8461';script.blocks=[newScriptBlock('action',privateText)];
   const editor=new ScriptEditor({container:document.getElementById('editor'),sceneRail:document.getElementById('scenes'),styleSelector:document.getElementById('styles'),diagnosticsEnabled:true});
@@ -364,9 +364,12 @@ test('temporary diagnostics record structure and ranges without authored text',(
   beforeInput(field,'insertText',{data:'PRIVATE_TYPED_VALUE',targetRanges:[range]});
   field.dispatchEvent(new window.KeyboardEvent('keydown',{key:'X',code:'KeyX',bubbles:true,cancelable:true}));
   const log=editor.inputDiagnosticLog(),serialized=JSON.stringify(log);
-  assert.doesNotMatch(serialized,/NEVER_RECORD_THIS_SCRIPT_TEXT_8461|PRIVATE_TYPED_VALUE|KeyX/);
+  assert.match(serialized,/NEVER_RECORD_THIS_SCRIPT_TEXT_8461|PRIVATE_TYPED_VALUE|KeyX/);
+  assert.equal(log.entryLimit,6000);
+  assert.equal(log.version,2);
   assert.ok(log.entries.some(entry=>entry.kind==='event'&&entry.targetRanges?.length===1));
-  assert.ok(log.finalModel.blocks.every(block=>Number.isInteger(block.length)&&!('text' in block)));
+  assert.ok(log.finalModel.blocks.some(block=>block.text===privateText));
+  assert.ok(log.entries.some(entry=>entry.kind==='viewport'&&entry.reason==='load'));
   dom.window.close();
 });
 

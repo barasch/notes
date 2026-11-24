@@ -4,7 +4,7 @@ import {
   isScriptBlockEmpty, newScriptBlock, previousDialogueRun, setDualWithPrevious, stripManualContinued, validateScript,
 } from './script-core.js?v=20261111-1';
 import {paginateScript, SCRIPT_LAYOUT, wrapScriptText} from './script-layout.js?v=20261106-1';
-import {ScriptInputDiagnostics} from './script-input-debug.js?v=20261112-1';
+import {ScriptInputDiagnostics} from './script-input-debug.js?v=20261124-2';
 
 const editableTypes=new Set(['act','scene','action','character','parenthetical','dialogue','transition']);
 
@@ -66,12 +66,19 @@ export class ScriptEditor {
     sceneRail?.addEventListener('click',event=>this.handleClick(event));
     this.selectionListener=()=>this.selectionChanged();
     this.ownerDocument.addEventListener('selectionchange',this.selectionListener);
-    this.resizeListener=()=>this.updatePageScale();
+    this.resizeListener=()=>{this.updatePageScale();this.diagnostics.recordViewport('resize');this.onDiagnostics();};
     this.window.addEventListener('resize',this.resizeListener,{passive:true});
+    if(diagnosticsEnabled) {
+      this.viewportListener=()=>{this.diagnostics.recordViewport('visual-viewport');this.onDiagnostics();};
+      this.scrollListener=()=>{this.diagnostics.recordViewport('scroll');this.onDiagnostics();};
+      this.window.visualViewport?.addEventListener('resize',this.viewportListener,{passive:true});
+      this.window.visualViewport?.addEventListener('scroll',this.viewportListener,{passive:true});
+      this.window.addEventListener('scroll',this.scrollListener,{passive:true});
+    }
   }
 
   load(document) {
-    this.document=validateScript(document);this.diagnostics.reset();this.diagnostics.record('document-load',{model:this.diagnostics.model()});this.render();this.onDiagnostics();
+    this.document=validateScript(document);this.diagnostics.reset();this.diagnostics.record('document-load',{model:this.diagnostics.model()});this.render();this.diagnostics.recordViewport('load');this.onDiagnostics();
   }
 
   snapshot() { return this.document; }
